@@ -146,7 +146,7 @@ impl Shape {
         };
     }
 
-    pub fn new_shape(position: [f32; 2], vertecies: Vec<[f32; 2]>, display: &Display, color: (f32,f32,f32)) -> Self {
+    pub fn new_shape(position: [f32; 2], vertecies: Vec<[f32; 2]>, display: &Display, color: (f32,f32,f32,f32)) -> Self {
         assert!(vertecies.len() > 2);
         let mut verts = Vec::<f32>::new();
         let vertecies = {
@@ -175,25 +175,25 @@ impl Shape {
         
                 in vec2 position;
         
-                out vec3 v_color;
+                out vec4 v_color;
         
                 uniform mat4 matrix;
         
                 void main() {{
-                    v_color = vec3({}, {}, {});
+                    v_color = vec3({}, {}, {}, {});
                     gl_Position = matrix * vec4(position, 0.0, 1.0);
                 }}
-                "#, color.0, color.1, color.2),
+                "#, color.0, color.1, color.2, color.3),
                 r#"
                     #version 140
 
-                    in vec3 v_color;
+                    in vec4 v_color;
 
                     out vec4 f_color;
 
                     void main() {
 
-                        f_color = vec4(v_color, 1.0);
+                        f_color = v_color;
                     }
                 "#,
                 None
@@ -230,16 +230,16 @@ impl Scene {
         
     }
 
-    pub fn draw_polygon(&mut self, vertecies: Vec<[f32; 2]>, color: (f32,f32,f32)) {
+    pub fn draw_polygon(&mut self, vertecies: Vec<[f32; 2]>, color: (f32,f32,f32,f32)) {
         self.add_actor(Shape::new_shape(vertecies[0], vertecies, &self.display, color));
     }
 
-    pub fn draw_rect(&mut self, position: [f32; 2], width: f32, height: f32, color: (f32,f32,f32)) {
+    pub fn draw_rect(&mut self, position: [f32; 2], width: f32, height: f32, color: (f32,f32,f32,f32)) {
         let vertecies = vec![position, [position[0] + width, position[1]], [position[0] + width, position[1] - height], [position[0], position[1] - height]];
         self.add_actor(Shape::new_shape(position, vertecies, &self.display, color));
     }
 
-    pub fn draw_square(&mut self, position: [f32; 2], size: f32, color: (f32,f32,f32)) {
+    pub fn draw_square(&mut self, position: [f32; 2], size: f32, color: (f32,f32,f32,f32)) {
         let vertecies = vec![position, [position[0] + size, position[1]], [position[0] + size, position[1] - size], [position[0], position[1] - size]];
         self.add_actor(Shape::new_shape(position, vertecies, &self.display, color));
     }
