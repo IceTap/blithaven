@@ -106,11 +106,12 @@ pub fn start_loop<F>(event_loop: EventLoop<()>, mut callback: F)->! where F: 'st
 
 pub fn get_params_defualt() -> DrawParameters<'static> {
     glium::DrawParameters {
-        depth: glium::Depth {
-            test: glium::draw_parameters::DepthTest::IfLess,
-            write: true,
-            .. Default::default()
-        },
+        // depth: glium::Depth {
+        //     test: glium::draw_parameters::DepthTest::IfLess,
+        //     write: true,
+        //     .. Default::default()
+        // },
+        blend: glium::draw_parameters::Blend::alpha_blending(),
         //backface_culling: glium::draw_parameters::BackfaceCullingMode::CullClockwise,
         polygon_mode: glium::PolygonMode::Fill,
         .. Default::default()
@@ -180,7 +181,7 @@ impl Shape {
                 uniform mat4 matrix;
         
                 void main() {{
-                    v_color = vec3({}, {}, {}, {});
+                    v_color = vec4({}, {}, {}, {});
                     gl_Position = matrix * vec4(position, 0.0, 1.0);
                 }}
                 "#, color.0, color.1, color.2, color.3),
@@ -222,7 +223,7 @@ impl Scene {
     pub fn save_frame(&mut self, clear_color: (f32,f32,f32)) -> Frame {
         let mut frame = self.display.draw();
         frame.clear_color_and_depth((clear_color.0, clear_color.1, clear_color.2, 1.0), 1.0);
-        while let Some(actor) = self.actors.pop() {
+        for actor in self.actors.iter() {
             actor.draw(&mut frame,);
         }
         self.actors = Vec::new();
@@ -256,10 +257,10 @@ pub struct App {
 
 impl App {
     pub fn init(title: &str) -> Self {
-        let event_loop = glutin::event_loop::EventLoop::new();
+        let mut event_loop = glutin::event_loop::EventLoopBuilder::new();
         let window = glutin::window::WindowBuilder::new().with_title(title);
         let context_buffer = glutin::ContextBuilder::new().with_depth_buffer(24);
-        App {scene: Scene { actors: Vec::new(), display: glium::Display::new(window, context_buffer, &event_loop).unwrap() }, event_loop: event_loop }
+        App {scene: Scene { actors: Vec::new(), display: glium::Display::new(window, context_buffer, &event_loop.build()).unwrap() }, event_loop: event_loop.build() }
     }
 }
 
@@ -272,7 +273,5 @@ impl App {
 
 //     #[test]
 //     fn it_works() {
-//         let result = add(2, 2);
-//         assert_eq!(result, 4);
 //     }
 // }
