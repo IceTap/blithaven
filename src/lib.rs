@@ -10,12 +10,17 @@
 //! 
 //! use blithaven::*;
 //! 
-//! blithaven::start_loop(app.event_loop, move | _events | {
-//!     app.scene.draw_polygon(vec![[0.0,0.0], [0.5,0.0], [0.5,0.5]], (1.0,0.0,0.0));
+//! fn main() {
 //!     
-//!     app.scene.save_frame((0.2,0.2,0.2)).finish().unwrap();
-//!     Action::Continue
-//! });
+//!     let mut app = App::init("test");
+//! 
+//!     blithaven::start_loop(app.event_loop, move | _events | {
+//!         app.scene.draw_polygon(vec![[0.0,0.0], [0.5,0.0], [0.5,0.5]], (1.0,0.0,0.0,1.0));
+//! 
+//!         app.scene.save_frame((0.2,0.2,0.2)).finish().unwrap();
+//!         Action::Continue
+//!     });
+//! }
 //! 
 //! ```
 
@@ -257,10 +262,10 @@ pub struct App {
 
 impl App {
     pub fn init(title: &str) -> Self {
-        let mut event_loop = glutin::event_loop::EventLoopBuilder::new();
+        let mut event_loop = glutin::event_loop::EventLoop::new();
         let window = glutin::window::WindowBuilder::new().with_title(title);
         let context_buffer = glutin::ContextBuilder::new().with_depth_buffer(24);
-        App {scene: Scene { actors: Vec::new(), display: glium::Display::new(window, context_buffer, &event_loop.build()).unwrap() }, event_loop: event_loop.build() }
+        App {scene: Scene { actors: Vec::new(), display: glium::Display::new(window, context_buffer, &event_loop).unwrap() }, event_loop: event_loop }
     }
 }
 
