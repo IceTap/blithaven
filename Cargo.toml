@@ -1,6 +1,6 @@
 [package]
 name = "blithaven"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 description = "Complex and insanely fast 2D rendering library"
 license = "MIT"
