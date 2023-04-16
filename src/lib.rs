@@ -149,7 +149,7 @@ impl Shape {
     ///
     /// The uniforms consist of a matrix used for transforming the shape, which includes
     /// the aspect ratio, position, and other parameters.
-    pub fn get_uniforms(&self) -> UniformsStorage<'static, [[f32; 4]; 4], EmptyUniforms> {
+    fn get_uniforms(&self) -> UniformsStorage<'static, [[f32; 4]; 4], EmptyUniforms> {
         return uniform! {
             matrix: [
                 [unsafe { ASPECT_RATIO }, 0.0, 0.0, 0.0],
@@ -167,7 +167,7 @@ impl Shape {
     /// # Panics
     ///
     /// This function will panic if the number of vertices is less than 3.
-    pub fn new_shape(position: [f32; 2], vertices: Vec<[f32; 2]>, display: &Display, color: (f32, f32, f32, f32)) -> Self {
+    fn new_shape(position: [f32; 2], vertices: Vec<[f32; 2]>, display: &Display, color: (f32, f32, f32, f32)) -> Self {
         assert!(vertices.len() > 2, "Number of vertices must be greater than 2.");
         let mut verts = Vec::<f32>::new();
         let vertices = {
