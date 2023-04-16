@@ -262,7 +262,7 @@ pub struct App {
 
 impl App {
     pub fn init(title: &str) -> Self {
-        let mut event_loop = glutin::event_loop::EventLoop::new();
+        let event_loop = glutin::event_loop::EventLoop::new();
         let window = glutin::window::WindowBuilder::new().with_title(title);
         let context_buffer = glutin::ContextBuilder::new().with_depth_buffer(24);
         App {scene: Scene { actors: Vec::new(), display: glium::Display::new(window, context_buffer, &event_loop).unwrap() }, event_loop: event_loop }
