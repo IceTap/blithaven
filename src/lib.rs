@@ -41,7 +41,8 @@ pub enum Action {
 
 static mut ASPECT_RATIO: f32 = 1.0;
 
-pub fn start_loop<F>(event_loop: EventLoop<()>, mut callback: F)->! where F: 'static + FnMut(&Vec<Event<'_, ()>>) -> Action {
+
+pub fn run<F>(event_loop: EventLoop<()>, mut input_code: F)->! where F: 'static + FnMut(&Vec<Event<'_, ()>>) {
     let mut events_buffer = Vec::new();
     let mut next_frame_time = Instant::now();
     event_loop.run(move |event, _, control_flow| {
@@ -65,7 +66,7 @@ pub fn start_loop<F>(event_loop: EventLoop<()>, mut callback: F)->! where F: 'st
         };
 
         let action = if run_callback {
-            let action = callback(&events_buffer);
+            input_code(&events_buffer);
             next_frame_time = Instant::now() + Duration::from_nanos(16666667);
             // TODO: Add back the old accumulator loop in some way
             for event in events_buffer.iter() {
@@ -85,7 +86,7 @@ pub fn start_loop<F>(event_loop: EventLoop<()>, mut callback: F)->! where F: 'st
             };
 
             events_buffer.clear();
-            action
+            Action::Continue
         } else {
             Action::Continue
         };
@@ -134,16 +135,6 @@ pub struct Shape {
 }
 
 impl Shape {
-    fn get_uniforms(&self) -> UniformsStorage<'static, [[f32; 4]; 4], EmptyUniforms> {
-        return uniform! {
-            matrix: [
-                [unsafe { ASPECT_RATIO }, 0.0, 0.0, 0.0],
-                [0.0, 1.0, 0.0, 0.0],
-                [0.0, 0.0, 1.0, 0.0],
-                [0.0, 0.0, -1.0, 1.0f32],
-            ]
-        };
-    }
     fn new_shape(vertices: Vec<[f32; 2]>, display: &Display, color: (f32, f32, f32, f32)) -> Self {
         assert!(vertices.len() > 2, "Number of vertices must be greater than 2.");
         let mut verts = Vec::<f32>::new();
@@ -202,7 +193,7 @@ impl Shape {
     }
 
     fn draw(&self, frame: &mut Frame) {
-        frame.draw(&self.vertex_buffer, &self.index_buffer, &self.program, &self.get_uniforms(), &get_params_defualt()).unwrap();
+        frame.draw(&self.vertex_buffer, &self.index_buffer, &self.program, &Scene::get_uniforms(), &get_params_defualt()).unwrap();
     }
 }
 
@@ -212,19 +203,29 @@ pub struct Scene {
 }
 
 impl Scene {
+    fn get_uniforms() -> UniformsStorage<'static, [[f32; 4]; 4], EmptyUniforms> {
+        return uniform! {
+            matrix: [
+                [unsafe { ASPECT_RATIO }, 0.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0, 0.0],
+                [0.0, 0.0, -1.0, 1.0f32],
+            ]
+        };
+    }
 
     pub fn add_actor(&mut self, shape: Shape) {
         self.actors.push(shape)
     }
 
-    pub fn save_frame(&mut self, clear_color: (f32, f32, f32)) -> Frame {
+    pub fn save_frame(&mut self, clear_color: (f32, f32, f32)) {
         let mut frame = self.display.draw();
         frame.clear_color_and_depth((clear_color.0, clear_color.1, clear_color.2, 0.5), 1.0);
         for actor in self.actors.iter() {
             actor.draw(&mut frame);
         }
         self.actors = Vec::new();
-        frame
+        frame.finish().unwrap();
     }
 
     pub fn draw_polygon(&mut self, vertices: Vec<[f32; 2]>, color: (f32, f32, f32, f32)) {
@@ -294,4 +295,17 @@ impl App {
         let context_buffer = glutin::ContextBuilder::new().with_depth_buffer(24);
         App {scene: Scene { actors: Vec::new(), display: glium::Display::new(window, context_buffer, &event_loop).unwrap() }, event_loop: event_loop }
     }
+}
+
+pub fn circle(scene: &mut Scene, position: [f32; 2],radius: f32, color: (f32,f32,f32,f32)) {
+    scene.draw_circle(position, radius, color);
+}
+pub fn rect(scene: &mut Scene, position: [f32; 2], width: f32, height: f32, color: (f32,f32,f32,f32)) {
+    scene.draw_rect(position, width, height, color);
+}
+pub fn square(scene: &mut Scene, position: [f32; 2], size: f32, color: (f32,f32,f32,f32)) {
+    scene.draw_square(position, size, color);
+}
+pub fn polygon(scene: &mut Scene, vertecies: Vec<[f32; 2]>, color: (f32,f32,f32,f32)) {
+    scene.draw_polygon(vertecies, color);
 }
