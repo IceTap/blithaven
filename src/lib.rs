@@ -136,13 +136,13 @@ pub struct Shape {
 
 impl Shape {
     fn new_shape(vertices: Vec<[f32; 2]>, display: &Display, color: (f32, f32, f32, f32)) -> Self {
-        assert!(vertices.len() > 2, "Number of vertices must be greater than 2.");
+        assert!(vertices.len() > 2, "Number of vertices in polygon must be greater than 2.");
         let mut verts = Vec::<f32>::new();
         let vertices = {
             let mut v: Vec<Vertex> = Vec::new();
             for vertex in vertices {
                 v.push(
-                    Vertex { position: vertex }
+                    Vertex { position: [vertex[0] / 400.0, vertex[1] / 400.0] }
                 );
                 verts.push(vertex[0]);
                 verts.push(vertex[1]);
@@ -192,6 +192,39 @@ impl Shape {
         Shape { vertex_buffer: vertices, index_buffer: indices, program: program }
     }
 
+    pub fn new(vertices: Vec<[f32; 2]>, display: &Display, vertex: &str, fragment: &str) -> Self {
+        assert!(vertices.len() > 2, "Number of vertices in polygon must be greater than 2.");
+        let mut verts = Vec::<f32>::new();
+        let vertices = {
+            let mut v: Vec<Vertex> = Vec::new();
+            for vertex in vertices {
+                v.push(
+                    Vertex { position: [vertex[0] / 400.0, vertex[1] / 400.0] }
+                );
+                verts.push(vertex[0]);
+                verts.push(vertex[1]);
+            }
+            VertexBuffer::new(display, &v).unwrap()
+        };
+        let indices = {
+            let mut data = Vec::<u16>::new();
+            for num in earcutr::earcut(&verts, &vec![], 2).unwrap() {
+                data.push(num as u16)
+            };
+
+            IndexBuffer::new(display, PrimitiveType::TrianglesList, &data).unwrap()
+        };
+        let program = {
+            Program::from_source(display,
+                vertex,
+                fragment,
+                None
+            ).unwrap()
+        };
+        
+        Shape { vertex_buffer: vertices, index_buffer: indices, program: program }
+    }
+
     fn draw(&self, frame: &mut Frame) {
         frame.draw(&self.vertex_buffer, &self.index_buffer, &self.program, &Scene::get_uniforms(), &get_params_defualt()).unwrap();
     }
@@ -199,7 +232,7 @@ impl Shape {
 
 pub struct Scene {
     actors: Vec<Shape>,
-    display: Display,
+    pub display: Display,
 }
 
 impl Scene {
@@ -228,23 +261,42 @@ impl Scene {
         frame.finish().unwrap();
     }
 
+
+
     pub fn draw_polygon(&mut self, vertices: Vec<[f32; 2]>, color: (f32, f32, f32, f32)) {
         self.add_actor(Shape::new_shape(vertices, &self.display, color));
     }
+    pub fn draw_polygon_with_shaders(&mut self, vertices: Vec<[f32; 2]>, vertex: &str, fragment: &str) {
+        self.add_actor(Shape::new(vertices, &self.display, vertex, fragment ));
+    }
+
+
 
     pub fn draw_rect(&mut self, position: [f32; 2], width: f32, height: f32, color: (f32,f32,f32,f32)) {
         let vertecies = vec![position, [position[0] + width, position[1]], [position[0] + width, position[1] - height], [position[0], position[1] - height]];
         self.add_actor(Shape::new_shape(vertecies, &self.display, color));
     }
+    pub fn draw_rect_with_shaders(&mut self, position: [f32; 2], width: f32, height: f32, vertex: &str, fragment: &str) {
+        let vertecies = vec![position, [position[0] + width, position[1]], [position[0] + width, position[1] - height], [position[0], position[1] - height]];
+        self.add_actor(Shape::new(vertecies, &self.display, vertex, fragment));
+    }
+
+
 
     pub fn draw_square(&mut self, position: [f32; 2], size: f32, color: (f32,f32,f32,f32)) {
         let vertecies = vec![position, [position[0] + size, position[1]], [position[0] + size, position[1] - size], [position[0], position[1] - size]];
         self.add_actor(Shape::new_shape(vertecies, &self.display, color));
     }
+    pub fn draw_square_with_shaders(&mut self, position: [f32; 2], size: f32, vertex: &str, fragment: &str) {
+        let vertecies = vec![position, [position[0] + size, position[1]], [position[0] + size, position[1] - size], [position[0], position[1] - size]];
+        self.add_actor(Shape::new(vertecies, &self.display, vertex, fragment));
+    }
+
+    
 
     pub fn draw_circle(&mut self, position: [f32; 2], radius: f32, color: (f32,f32,f32,f32)) {
         let mut vertecies = vec![position];
-        let vertex_count = 48;
+        let vertex_count: usize = 48;
 
         for i in 0 .. vertex_count {
             let x = (i as f32 * PI) / 12.0;
@@ -252,6 +304,17 @@ impl Scene {
         }vertecies.push([position[0] + radius, position[1]]);
 
         self.add_actor(Shape::new_shape(vertecies, &self.display, color));
+    }
+    pub fn draw_circle_with_shaders(&mut self, position: [f32; 2], radius: f32, vertex: &str, fragment: &str) {
+        let mut vertecies = vec![position];
+        let vertex_count: usize = 48;
+
+        for i in 0 .. vertex_count {
+            let x = (i as f32 * PI) / 12.0;
+            vertecies.push([position[0] + (x).cos() * radius, position[1] + (x).sin() * radius]);
+        }vertecies.push([position[0] + radius, position[1]]);
+
+        self.add_actor(Shape::new(vertecies, &self.display, vertex, fragment));
     }
     
 }
@@ -306,6 +369,18 @@ pub fn rect(scene: &mut Scene, position: [f32; 2], width: f32, height: f32, colo
 pub fn square(scene: &mut Scene, position: [f32; 2], size: f32, color: (f32,f32,f32,f32)) {
     scene.draw_square(position, size, color);
 }
-pub fn polygon(scene: &mut Scene, vertecies: Vec<[f32; 2]>, color: (f32,f32,f32,f32)) {
+pub fn polygon_from(scene: &mut Scene, vertecies: Vec<[f32; 2]>, color: (f32,f32,f32,f32)) {
+    scene.draw_polygon(vertecies, color);
+}
+pub fn polygon(scene: &mut Scene, vertecies: Vec<f32>, color: (f32,f32,f32,f32)) {
+    let vertecies = {
+        let mut verts: Vec<[f32;2]> = vec![];
+        for index in 0 .. vertecies.len() {
+            if index % 2 == 0 {
+                verts.push([vertecies[index], vertecies[index + 1]])
+            }
+        }
+        verts
+    };
     scene.draw_polygon(vertecies, color);
 }
