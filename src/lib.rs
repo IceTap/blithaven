@@ -1,6 +1,6 @@
 
 //!
-//! BlitHaven is a fast, high performance 2-Dimensional Game Engine
+//! BlitHaven is a 2-Dimensional Game Engine
 //! 
 //! 
  
@@ -44,7 +44,7 @@ pub enum Action {
 static mut ASPECT_RATIO: f32 = 1.0;
 
 
-pub fn run<F>(event_loop: EventLoop<()>, mut input_code: F)->! where F: 'static + FnMut(&Vec<Event<'_, ()>>) {
+pub fn run<F>(event_loop: EventLoop<()>, mut input_code: F)->! where F: 'static + FnMut(&Vec<Event<'_, ()>>)-> Action {
     let mut events_buffer = Vec::new();
     let mut next_frame_time = Instant::now();
     event_loop.run(move |event, _, control_flow| {
@@ -68,7 +68,7 @@ pub fn run<F>(event_loop: EventLoop<()>, mut input_code: F)->! where F: 'static 
         };
 
         let action = if run_callback {
-            input_code(&events_buffer);
+            let action = input_code(&events_buffer);
             next_frame_time = Instant::now() + Duration::from_nanos(16666667);
             // TODO: Add back the old accumulator loop in some way
             for event in events_buffer.iter() {
@@ -85,7 +85,7 @@ pub fn run<F>(event_loop: EventLoop<()>, mut input_code: F)->! where F: 'static 
             };
 
             events_buffer.clear();
-            Action::Continue
+            action
         } else {
             Action::Continue
         };
@@ -131,13 +131,13 @@ pub struct Shape {
     vertex_buffer: VertexBuffer<Vertex>,
     index_buffer: IndexBuffer<u16>,
     program: Program,
-    uniforms: UniformsStorage<'static, [[f32; 4]; 4], EmptyUniforms>
+    uniforms: UniformsStorage<'static, [[f32; 4]; 4], EmptyUniforms>,
 }
 
 impl Shape {
-    fn add_uniform<U>(&self, name: &str, input: U) where U: uniforms::AsUniformValue {
-        self.uniforms.add(name, input);
-    }
+    // fn add_uniform<U>(&mut self, name: &str, input: U) where U: uniforms::AsUniformValue {
+    //     self.uniforms.add(name, input);
+    // }
     fn new(vertices: Vec<[f32; 2]>, display: &Display, color: Option<(f32, f32, f32, f32)>, vertex: Option<&str>, fragment: Option<&str>, distortion: f32, aspect_ratio: f32) -> Self {
         assert!(vertices.len() > 2, "Number of vertices in polygon must be greater than 2.");
         let mut verts = Vec::<f32>::new();
@@ -237,61 +237,61 @@ impl Scene {
 
 
 
-    pub fn draw_polygon(&mut self, vertecies: Vec<[f32; 2]>, color: (f32, f32, f32, f32)) {
-        self.add_actor(Shape::new(vertecies, &self.display, Some(color), None, None, self.distortion, self.aspect_ratio));
-    }
-    pub fn draw_polygon_with_shaders(&mut self, vertecies: Vec<[f32; 2]>, vertex: &str, fragment: &str) {
-        self.add_actor(Shape::new(vertecies, &self.display, None, Some(vertex), Some(fragment), self.distortion, self.aspect_ratio));
-    }
+    // pub fn draw_polygon(&mut self, vertecies: Vec<[f32; 2]>, color: (f32, f32, f32, f32)) {
+    //     self.add_actor(Shape::new(vertecies, &self.display, Some(color), None, None, self.distortion, self.aspect_ratio));
+    // }
+    // pub fn draw_polygon_with_shaders(&mut self, vertecies: Vec<[f32; 2]>, vertex: &str, fragment: &str) {
+    //     self.add_actor(Shape::new(vertecies, &self.display, None, Some(vertex), Some(fragment), self.distortion, self.aspect_ratio));
+    // }
 
 
 
-    pub fn draw_rect(&mut self, position: [f32; 2], width: f32, height: f32, color: (f32,f32,f32,f32)) {
-        let vertecies = vec![position, [position[0] + width, position[1]], [position[0] + width, position[1] - height], [position[0], position[1] - height]];
-        self.add_actor(Shape::new(vertecies, &self.display, Some(color), None, None, self.distortion, self.aspect_ratio));
-    }
-    pub fn draw_rect_with_shaders(&mut self, position: [f32; 2], width: f32, height: f32, vertex: &str, fragment: &str) {
-        let vertecies = vec![position, [position[0] + width, position[1]], [position[0] + width, position[1] - height], [position[0], position[1] - height]];
-        self.add_actor(Shape::new(vertecies, &self.display, None, Some(vertex), Some(fragment), self.distortion, self.aspect_ratio));
-    }
+    // pub fn draw_rect(&mut self, position: [f32; 2], width: f32, height: f32, color: (f32,f32,f32,f32)) {
+    //     let vertecies = vec![position, [position[0] + width, position[1]], [position[0] + width, position[1] - height], [position[0], position[1] - height]];
+    //     self.add_actor(Shape::new(vertecies, &self.display, Some(color), None, None, self.distortion, self.aspect_ratio));
+    // }
+    // pub fn draw_rect_with_shaders(&mut self, position: [f32; 2], width: f32, height: f32, vertex: &str, fragment: &str) {
+    //     let vertecies = vec![position, [position[0] + width, position[1]], [position[0] + width, position[1] - height], [position[0], position[1] - height]];
+    //     self.add_actor(Shape::new(vertecies, &self.display, None, Some(vertex), Some(fragment), self.distortion, self.aspect_ratio));
+    // }
 
 
 
-    pub fn draw_square(&mut self, position: [f32; 2], size: f32, color: (f32,f32,f32,f32)) {
-        let vertecies = vec![position, [position[0] + size, position[1]], [position[0] + size, position[1] - size], [position[0], position[1] - size]];
-        self.add_actor(Shape::new(vertecies, &self.display, Some(color), None, None, self.distortion, self.aspect_ratio));
-    }
-    pub fn draw_square_with_shaders(&mut self, position: [f32; 2], size: f32, vertex: &str, fragment: &str) {
-        let vertecies = vec![position, [position[0] + size, position[1]], [position[0] + size, position[1] - size], [position[0], position[1] - size]];
-        self.add_actor(Shape::new(vertecies, &self.display, None, Some(vertex), Some(fragment), self.distortion, self.aspect_ratio));
-    }
+    // pub fn draw_square(&mut self, position: [f32; 2], size: f32, color: (f32,f32,f32,f32)) {
+    //     let vertecies = vec![position, [position[0] + size, position[1]], [position[0] + size, position[1] - size], [position[0], position[1] - size]];
+    //     self.add_actor(Shape::new(vertecies, &self.display, Some(color), None, None, self.distortion, self.aspect_ratio));
+    // }
+    // pub fn draw_square_with_shaders(&mut self, position: [f32; 2], size: f32, vertex: &str, fragment: &str) {
+    //     let vertecies = vec![position, [position[0] + size, position[1]], [position[0] + size, position[1] - size], [position[0], position[1] - size]];
+    //     self.add_actor(Shape::new(vertecies, &self.display, None, Some(vertex), Some(fragment), self.distortion, self.aspect_ratio));
+    // }
 
     
 
-    pub fn draw_circle(&mut self, position: [f32; 2], radius: f32, color: (f32,f32,f32,f32)) {
-        let mut vertecies = vec![position];
-        let vertex_count: usize = 48;
+    // pub fn draw_circle(&mut self, position: [f32; 2], radius: f32, color: (f32,f32,f32,f32)) {
+    //     let mut vertecies = vec![position];
+    //     let vertex_count: usize = 48;
 
-        for i in 0 .. vertex_count {
-            let x = (i as f32 * PI) / 24.0;
-            vertecies.push([position[0] + (x).cos() * radius, position[1] + (x).sin() * radius]);
-        }
-        vertecies.push([position[0] + radius, position[1]]);
+    //     for i in 0 .. vertex_count {
+    //         let x = (i as f32 * PI) / 24.0;
+    //         vertecies.push([position[0] + (x).cos() * radius, position[1] + (x).sin() * radius]);
+    //     }
+    //     vertecies.push([position[0] + radius, position[1]]);
 
-        self.add_actor(Shape::new(vertecies, &self.display, Some(color), None, None, self.distortion, self.aspect_ratio));
-    }
-    pub fn draw_circle_with_shaders(&mut self, position: [f32; 2], radius: f32, vertex: &str, fragment: &str) {
-        let mut vertecies = vec![position];
-        let vertex_count: usize = 48;
+    //     self.add_actor(Shape::new(vertecies, &self.display, Some(color), None, None, self.distortion, self.aspect_ratio));
+    // }
+    // pub fn draw_circle_with_shaders(&mut self, position: [f32; 2], radius: f32, vertex: &str, fragment: &str) {
+    //     let mut vertecies = vec![position];
+    //     let vertex_count: usize = 48;
 
-        for i in 0 .. vertex_count {
-            let x = (i as f32 * PI) / 24.0;
-            vertecies.push([position[0] + (x).cos() * radius, position[1] + (x).sin() * radius]);
-        }
-        vertecies.push([position[0] + radius, position[1]]);
+    //     for i in 0 .. vertex_count {
+    //         let x = (i as f32 * PI) / 24.0;
+    //         vertecies.push([position[0] + (x).cos() * radius, position[1] + (x).sin() * radius]);
+    //     }
+    //     vertecies.push([position[0] + radius, position[1]]);
         
-        self.add_actor(Shape::new(vertecies, &self.display, None, Some(vertex), Some(fragment), self.distortion, self.aspect_ratio));
-    }
+    //     self.add_actor(Shape::new(vertecies, &self.display, None, Some(vertex), Some(fragment), self.distortion, self.aspect_ratio));
+    // }
 }
 
 
@@ -330,6 +330,35 @@ impl App {
         let context_buffer = glutin::ContextBuilder::new().with_depth_buffer(24);
         App {scene: Scene { actors: Vec::new(), display: glium::Display::new(window, context_buffer, &event_loop).unwrap(), distortion: 400.0, aspect_ratio: 16.0 / 9.0 }, aspect_ratio: 16.0 / 9.0 }
     }
+    pub fn init_with_loop(title: &str) -> (Self, EventLoop<()>) {
+        let mut icon: Vec<u8> = vec![];
+        let mut counter = 0;
+
+        for i in 0 .. 256 * 4 {
+            if counter == 3 {
+                icon.push(255);
+                counter = 0;
+            }
+
+            else {
+                if i % 2 == 0 {
+                    icon.push(200)
+                }
+                else if i % 3 == 0 {
+                    icon.push(150);
+                } 
+                
+                else {icon.push(60)}
+                counter += 1
+            }
+        }
+        let icon = glutin::window::Icon::from_rgba(icon, 16, 16).expect("BADICON");
+
+        let event_loop = glium::glutin::event_loop::EventLoop::new();
+        let window = glutin::window::WindowBuilder::new().with_title(title).with_window_icon(Some(icon)).with_transparent(true);
+        let context_buffer = glutin::ContextBuilder::new().with_depth_buffer(24);
+        (App {scene: Scene { actors: Vec::new(), display: glium::Display::new(window, context_buffer, &event_loop).unwrap(), distortion: 400.0, aspect_ratio: 16.0 / 9.0 }, aspect_ratio: 16.0 / 9.0 }, event_loop)
+    }
 
     pub fn set_world_size(&mut self, size: f32) {
         self.scene.distortion = size;
@@ -352,11 +381,58 @@ impl App {
             vertecies.push([position[0] + (x).cos() * radius, position[1] + (x).sin() * radius]);
         }
         vertecies.push([position[0] + radius, position[1]]);
+
+        let shape = Shape::new(vertecies, &self.scene.display, None, Some(vertex), Some(fragment), self.scene.distortion, self.aspect_ratio);
+        // if uniform.is_some() {
+        //     let uniform = uniform.unwrap();
+        //     shape.add_uniform(uniform.0, uniform.1);
+        // }
+
         
+        self.scene.add_actor(shape);
+    }
+
+    pub fn draw_polygon(&mut self, vertecies: Vec<[f32; 2]>, color: (f32, f32, f32, f32)) {
+        self.scene.add_actor(Shape::new(vertecies, &self.scene.display, Some(color), None, None, self.scene.distortion, self.aspect_ratio));
+    }
+    pub fn draw_polygon_with_shaders(&mut self, vertecies: Vec<[f32; 2]>, vertex: &str, fragment: &str) {
         self.scene.add_actor(Shape::new(vertecies, &self.scene.display, None, Some(vertex), Some(fragment), self.scene.distortion, self.aspect_ratio));
     }
 
-    pub fn save_frame(&mut self, color: (f32,f32,f32), events: &Vec<Event<()>>) {
+    pub fn draw_rect(&mut self, position: [f32; 2], width: f32, height: f32, color: (f32,f32,f32,f32)) {
+        let vertecies = vec![position, [position[0] + width, position[1]], [position[0] + width, position[1] - height], [position[0], position[1] - height]];
+        self.scene.add_actor(Shape::new(vertecies, &self.scene.display, Some(color), None, None, self.scene.distortion, self.aspect_ratio));
+    }
+    pub fn draw_rect_with_shaders(&mut self, position: [f32; 2], width: f32, height: f32, vertex: &str, fragment: &str) {
+        let vertecies = vec![position, [position[0] + width, position[1]], [position[0] + width, position[1] - height], [position[0], position[1] - height]];
+        self.scene.add_actor(Shape::new(vertecies, &self.scene.display, None, Some(vertex), Some(fragment), self.scene.distortion, self.aspect_ratio));
+    }
+
+    pub fn draw_square(&mut self, position: [f32; 2], size: f32, color: (f32,f32,f32,f32)) {
+        let vertecies = vec![position, [position[0] + size, position[1]], [position[0] + size, position[1] - size], [position[0], position[1] - size]];
+        self.scene.add_actor(Shape::new(vertecies, &self.scene.display, Some(color), None, None, self.scene.distortion, self.aspect_ratio));
+    }
+    pub fn draw_square_with_shaders(&mut self, position: [f32; 2], size: f32, vertex: &str, fragment: &str) {
+        let vertecies = vec![position, [position[0] + size, position[1]], [position[0] + size, position[1] - size], [position[0], position[1] - size]];
+        self.scene.add_actor(Shape::new(vertecies, &self.scene.display, None, Some(vertex), Some(fragment), self.scene.distortion, self.aspect_ratio));
+    }
+
+    pub fn draw_circle(&mut self, position: [f32; 2], radius: f32, color: (f32,f32,f32,f32)) {
+        let mut vertecies = vec![position];
+        let vertex_count: usize = 48;
+
+        for i in 0 .. vertex_count {
+            let x = (i as f32 * PI) / 24.0;
+            vertecies.push([position[0] + (x).cos() * radius, position[1] + (x).sin() * radius]);
+        }
+        vertecies.push([position[0] + radius, position[1]]);
+
+        self.scene.add_actor(Shape::new(vertecies, &self.scene.display, Some(color), None, None, self.scene.distortion, self.aspect_ratio));
+    }
+
+
+
+    pub fn save_frame(&mut self, color: (f32,f32,f32), events: &Vec<Event<()>>) -> Action {
         for event in events.iter() {
             match event {
                 glutin::event::Event::WindowEvent { event, .. } => match event {
@@ -368,23 +444,24 @@ impl App {
                 _ => (),
             }
         };
-        self.scene.finish(color)
+        self.scene.finish(color);
+        Action::Continue
     }
 }
 
-pub fn circle(scene: &mut Scene, position: [f32; 2],radius: f32, color: (f32,f32,f32,f32)) {
-    scene.draw_circle(position, radius, color);
+pub fn circle(app: &mut App, position: [f32; 2],radius: f32, color: (f32,f32,f32,f32)) {
+    app.draw_circle(position, radius, color);
 }
-pub fn rect(scene: &mut Scene, position: [f32; 2], width: f32, height: f32, color: (f32,f32,f32,f32)) {
-    scene.draw_rect(position, width, height, color);
+pub fn rect(app: &mut App, position: [f32; 2], width: f32, height: f32, color: (f32,f32,f32,f32)) {
+    app.draw_rect(position, width, height, color);
 }
-pub fn square(scene: &mut Scene, position: [f32; 2], size: f32, color: (f32,f32,f32,f32)) {
-    scene.draw_square(position, size, color);
+pub fn square(app: &mut App, position: [f32; 2], size: f32, color: (f32,f32,f32,f32)) {
+    app.draw_square(position, size, color);
 }
-pub fn polygon_from(scene: &mut Scene, vertecies: Vec<[f32; 2]>, color: (f32,f32,f32,f32)) {
-    scene.draw_polygon(vertecies, color);
+pub fn polygon_from(app: &mut App, vertecies: Vec<[f32; 2]>, color: (f32,f32,f32,f32)) {
+    app.draw_polygon(vertecies, color);
 }
-pub fn polygon(scene: &mut Scene, vertecies: Vec<f32>, color: (f32,f32,f32,f32)) {
+pub fn polygon(app: &mut App, vertecies: Vec<f32>, color: (f32,f32,f32,f32)) {
     let vertecies = {
         let mut verts: Vec<[f32;2]> = vec![];
         for index in 0 .. vertecies.len() {
@@ -394,7 +471,7 @@ pub fn polygon(scene: &mut Scene, vertecies: Vec<f32>, color: (f32,f32,f32,f32))
         }
         verts
     };
-    scene.draw_polygon(vertecies, color);
+    app.draw_polygon(vertecies, color);
 }
 
 pub fn new_event_loop() -> EventLoop<()> {
@@ -407,7 +484,7 @@ pub fn t_is_pressed(events: &Vec<Event<()>>, value: &str) -> bool {
         match event {
             glutin::event::Event::WindowEvent { event, .. } => match event {
                 glutin::event::WindowEvent::KeyboardInput { device_id: _, input, is_synthetic } => {
-                    if input.virtual_keycode.unwrap() as usize == value as usize && !is_synthetic {return true}
+                    if input.virtual_keycode.unwrap() as usize == value as usize && !is_synthetic && input.state == glium::glutin::event::ElementState::Pressed {return true}
                     return false;
                 },
                 _ => (),
