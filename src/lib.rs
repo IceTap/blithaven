@@ -103,7 +103,7 @@ pub fn run<F>(event_loop: EventLoop<()>, mut input_code: F)->! where F: 'static 
 pub fn get_params_defualt() -> DrawParameters<'static> {
     glium::DrawParameters {
         blend: glium::draw_parameters::Blend::alpha_blending(),
-        polygon_mode: glium::PolygonMode::Fill,
+        polygon_mode: glium::PolygonMode::Line,
         .. Default::default()
     }
 }
@@ -113,9 +113,10 @@ pub fn get_params_defualt() -> DrawParameters<'static> {
 
 #[derive(Clone, Copy, Debug)]
 struct Vertex {
-    position: [f32; 2]
+    position: [f32; 2],
+    color: [f32; 3]
 }
-implement_vertex!(Vertex, position);
+implement_vertex!(Vertex, position, color);
 
 
 use glium::Display;
@@ -126,6 +127,81 @@ use glium::vertex::VertexBuffer;
 use glium::Program;
 use glium::Frame;
 use std::vec::Vec;
+
+
+struct Batch {
+    vertex_buffer: Vec<Vertex>,
+    index_buffer: Vec<u16>,
+    program: Program,
+}
+
+impl Batch {
+    fn new(display: &Display, aspect_ratio: f32) -> Self {
+        let program = {
+                Program::from_source(display,
+                    r#"
+                    #version 140
+    
+                    in vec2 position;
+                    in vec3 color;
+    
+                    out vec4 v_color;
+    
+                    uniform mat4 matrix;
+    
+                    void main() {{
+                        v_color = vec4(0.5, 0.5, 0.5, 1.0);
+                        gl_Position = matrix * vec4(position, 0.0, 1.0);
+                    }}
+                    "#,
+                    r#"
+                        #version 140
+    
+                        in vec4 v_color;
+    
+                        out vec4 f_color;
+    
+                        void main() {
+    
+                            f_color = v_color;
+                        }
+                    "#,
+                    None
+                ).unwrap()
+        };
+        Self { vertex_buffer: vec![], index_buffer: vec![], program: program }
+    }
+    
+    fn add_quad(&mut self, position: [f32; 2], width: f32, height: f32) {
+        self.vertex_buffer.push(Vertex { position: position, color: [1.0,1.0,1.0] });
+        self.vertex_buffer.push(Vertex { position: [position[0] + width, position[1]], color: [1.0,1.0,1.0] });
+        self.vertex_buffer.push(Vertex { position: [position[0] + width, position[1] - height], color: [1.0,1.0,1.0] });
+        self.vertex_buffer.push(Vertex { position: [position[0], position[1] - height], color: [1.0,1.0,1.0] });
+
+        self.index_buffer.push(1);
+        self.index_buffer.push(2);
+        self.index_buffer.push(3);
+
+        self.index_buffer.push(1);
+        self.index_buffer.push(4);
+        self.index_buffer.push(3);
+    }
+
+    fn draw(&self, frame: &mut Frame, display: &Display, aspect_ratio: f32) {
+        let uniforms = uniform! {
+            matrix: [
+                [aspect_ratio, 0.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0, 0.0],
+                [0.0, 0.0, -1.0, 1.0f32],
+            ]
+        };
+        let index_buffer = IndexBuffer::new(display, PrimitiveType::TrianglesList, &self.index_buffer).unwrap();
+        let vertex_buffer = VertexBuffer::new(display, &self.vertex_buffer).unwrap();
+
+        frame.draw(&vertex_buffer, &index_buffer, &self.program, &uniforms, &get_params_defualt()).unwrap();
+    }
+}
 
 pub struct Shape {
     vertex_buffer: VertexBuffer<Vertex>,
@@ -145,7 +221,7 @@ impl Shape {
             let mut v: Vec<Vertex> = Vec::new();
             for vertex in vertices {
                 v.push(
-                    Vertex { position: [vertex[0] / distortion, vertex[1] / distortion] }
+                    Vertex { position: [vertex[0] / distortion, vertex[1] / distortion], color: [0.2,0.2,0.2] }
                 );
                 verts.push(vertex[0]);
                 verts.push(vertex[1]);
@@ -217,7 +293,8 @@ pub struct Scene {
     actors: Vec<Shape>,
     display: Display,
     distortion: f32,
-    aspect_ratio: f32
+    aspect_ratio: f32,
+
 }
 
 impl Scene {
@@ -478,7 +555,7 @@ pub fn new_event_loop() -> EventLoop<()> {
     glium::glutin::event_loop::EventLoop::new()
 }
 
-pub fn t_is_pressed(events: &Vec<Event<()>>, value: &str) -> bool {
+pub fn x_is_pressed(events: &Vec<Event<()>>, value: &str) -> bool {
     let value = VirtualKeyCode::from_str(value).unwrap();
     for event in events.iter() {
         match event {
