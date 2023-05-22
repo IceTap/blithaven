@@ -24,27 +24,20 @@
 //! 
 //! ```
 
-
 #![allow(dead_code)]
 use glium::{glutin, DrawParameters};
-use std::f32::consts::PI;
 use std::time::{Duration, Instant};
 use glium::glutin::event_loop::{EventLoop, ControlFlow};
 use glium::glutin::event::{Event, StartCause};
 use glium::*;
-use earcutr;
 use strum_macros::EnumString;
-use std::str::FromStr;
 
-pub enum Action {
+enum Action {
     Stop,
     Continue,
 }
 
-static mut ASPECT_RATIO: f32 = 1.0;
-
-
-pub fn run<F>(event_loop: EventLoop<()>, mut input_code: F)->! where F: 'static + FnMut(&Vec<Event<'_, ()>>)-> Action {
+pub fn run<F>(event_loop: EventLoop<()>, mut input_code: F)->! where F: 'static + FnMut(&Vec<Event<'_, ()>>) {
     let mut events_buffer = Vec::new();
     let mut next_frame_time = Instant::now();
     event_loop.run(move |event, _, control_flow| {
@@ -68,7 +61,7 @@ pub fn run<F>(event_loop: EventLoop<()>, mut input_code: F)->! where F: 'static 
         };
 
         let action = if run_callback {
-            let action = input_code(&events_buffer);
+            input_code(&events_buffer);
             next_frame_time = Instant::now() + Duration::from_nanos(16666667);
             // TODO: Add back the old accumulator loop in some way
             for event in events_buffer.iter() {
@@ -76,7 +69,7 @@ pub fn run<F>(event_loop: EventLoop<()>, mut input_code: F)->! where F: 'static 
                     glutin::event::Event::WindowEvent { event, .. } => match event {
                         glutin::event::WindowEvent::CloseRequested => {
                             *control_flow = glutin::event_loop::ControlFlow::Exit;
-                            return;
+                            return
                         },
                         _ => (),
                     },
@@ -85,7 +78,7 @@ pub fn run<F>(event_loop: EventLoop<()>, mut input_code: F)->! where F: 'static 
             };
 
             events_buffer.clear();
-            action
+            Action::Continue
         } else {
             Action::Continue
         };
@@ -95,20 +88,9 @@ pub fn run<F>(event_loop: EventLoop<()>, mut input_code: F)->! where F: 'static 
                 *control_flow = ControlFlow::WaitUntil(next_frame_time);
             },
             Action::Stop => *control_flow = ControlFlow::Exit
-        }
-
+        };
     })
 }
-
-pub fn get_params_defualt() -> DrawParameters<'static> {
-    glium::DrawParameters {
-        blend: glium::draw_parameters::Blend::alpha_blending(),
-        polygon_mode: glium::PolygonMode::Line,
-        .. Default::default()
-    }
-}
-
-
 
 
 #[derive(Clone, Copy, Debug)]
@@ -119,26 +101,19 @@ struct Vertex {
 implement_vertex!(Vertex, position, color);
 
 
-use glium::Display;
-use glium::uniforms::{UniformsStorage, EmptyUniforms};
-use glium::index::PrimitiveType;
-use glium::index::IndexBuffer;
-use glium::vertex::VertexBuffer;
-use glium::Program;
-use glium::Frame;
-use std::vec::Vec;
-
-
-struct Batch {
+use glium::{Display, index::{PrimitiveType, IndexBuffer}, vertex::VertexBuffer, Program, Frame};
+pub struct Batch {
     vertex_buffer: Vec<Vertex>,
     index_buffer: Vec<u16>,
     program: Program,
+    display: Display,
+    aspect_ratio: f32
 }
 
 impl Batch {
-    fn new(display: &Display, aspect_ratio: f32) -> Self {
+    fn new(display: Display, aspect_ratio: f32) -> Self {
         let program = {
-                Program::from_source(display,
+                Program::from_source(&display,
                     r#"
                     #version 140
     
@@ -150,7 +125,7 @@ impl Batch {
                     uniform mat4 matrix;
     
                     void main() {{
-                        v_color = vec4(0.5, 0.5, 0.5, 1.0);
+                        v_color = vec4(color, 1.0);
                         gl_Position = matrix * vec4(position, 0.0, 1.0);
                     }}
                     "#,
@@ -169,213 +144,54 @@ impl Batch {
                     None
                 ).unwrap()
         };
-        Self { vertex_buffer: vec![], index_buffer: vec![], program: program }
+        Self { vertex_buffer: vec![], index_buffer: vec![], program: program, display: display, aspect_ratio: aspect_ratio }
     }
     
-    fn add_quad(&mut self, position: [f32; 2], width: f32, height: f32) {
-        self.vertex_buffer.push(Vertex { position: position, color: [1.0,1.0,1.0] });
-        self.vertex_buffer.push(Vertex { position: [position[0] + width, position[1]], color: [1.0,1.0,1.0] });
-        self.vertex_buffer.push(Vertex { position: [position[0] + width, position[1] - height], color: [1.0,1.0,1.0] });
-        self.vertex_buffer.push(Vertex { position: [position[0], position[1] - height], color: [1.0,1.0,1.0] });
+    pub fn add_quad(&mut self, position: [f32; 2], width: f32, height: f32, color: (f32, f32, f32)) {
+        let index_buffer_size = self.vertex_buffer.len() as u16;
+        self.index_buffer.push(index_buffer_size + 0);
+        self.index_buffer.push(index_buffer_size + 1);
+        self.index_buffer.push(index_buffer_size + 2);
 
-        self.index_buffer.push(1);
-        self.index_buffer.push(2);
-        self.index_buffer.push(3);
+        self.index_buffer.push(index_buffer_size + 0);
+        self.index_buffer.push(index_buffer_size + 3);
+        self.index_buffer.push(index_buffer_size + 2);
 
-        self.index_buffer.push(1);
-        self.index_buffer.push(4);
-        self.index_buffer.push(3);
-    }
-
-    fn draw(&self, frame: &mut Frame, display: &Display, aspect_ratio: f32) {
-        let uniforms = uniform! {
-            matrix: [
-                [aspect_ratio, 0.0, 0.0, 0.0],
-                [0.0, 1.0, 0.0, 0.0],
-                [0.0, 0.0, 1.0, 0.0],
-                [0.0, 0.0, -1.0, 1.0f32],
-            ]
-        };
-        let index_buffer = IndexBuffer::new(display, PrimitiveType::TrianglesList, &self.index_buffer).unwrap();
-        let vertex_buffer = VertexBuffer::new(display, &self.vertex_buffer).unwrap();
-
-        frame.draw(&vertex_buffer, &index_buffer, &self.program, &uniforms, &get_params_defualt()).unwrap();
-    }
-}
-
-pub struct Shape {
-    vertex_buffer: VertexBuffer<Vertex>,
-    index_buffer: IndexBuffer<u16>,
-    program: Program,
-    uniforms: UniformsStorage<'static, [[f32; 4]; 4], EmptyUniforms>,
-}
-
-impl Shape {
-    // fn add_uniform<U>(&mut self, name: &str, input: U) where U: uniforms::AsUniformValue {
-    //     self.uniforms.add(name, input);
-    // }
-    fn new(vertices: Vec<[f32; 2]>, display: &Display, color: Option<(f32, f32, f32, f32)>, vertex: Option<&str>, fragment: Option<&str>, distortion: f32, aspect_ratio: f32) -> Self {
-        assert!(vertices.len() > 2, "Number of vertices in polygon must be greater than 2.");
-        let mut verts = Vec::<f32>::new();
-        let vertices = {
-            let mut v: Vec<Vertex> = Vec::new();
-            for vertex in vertices {
-                v.push(
-                    Vertex { position: [vertex[0] / distortion, vertex[1] / distortion], color: [0.2,0.2,0.2] }
-                );
-                verts.push(vertex[0]);
-                verts.push(vertex[1]);
-            }
-            VertexBuffer::new(display, &v).unwrap()
-        };
-        let indices = {
-            let mut data = Vec::<u16>::new();
-            for num in earcutr::earcut(&verts, &vec![], 2).unwrap() {
-                data.push(num as u16)
-            };
-
-            IndexBuffer::new(display, PrimitiveType::TrianglesList, &data).unwrap()
-        };
-        let program = {
-            if vertex.is_none() && fragment.is_none() && color.is_some() {
-                let color = color.unwrap();
-                Program::from_source(display,
-                    &format!(r#"
-                    #version 140
-    
-                    in vec2 position;
-    
-                    out vec4 v_color;
-    
-                    uniform mat4 matrix;
-    
-                    void main() {{
-                        v_color = vec4({}, {}, {}, {});
-                        gl_Position = matrix * vec4(position, 0.0, 1.0);
-                    }}
-                    "#, color.0, color.1, color.2, color.3),
-                    r#"
-                        #version 140
-    
-                        in vec4 v_color;
-    
-                        out vec4 f_color;
-    
-                        void main() {
-    
-                            f_color = v_color;
-                        }
-                    "#,
-                    None
-                ).unwrap()
-            }
-            else {
-                Program::from_source(display, vertex.unwrap(), fragment.unwrap(), None).unwrap()
-            }
-        };
-        let uniforms = uniform! {
-            matrix: [
-                [aspect_ratio, 0.0, 0.0, 0.0],
-                [0.0, 1.0, 0.0, 0.0],
-                [0.0, 0.0, 1.0, 0.0],
-                [0.0, 0.0, -1.0, 1.0f32],
-            ]
-        };
-        Shape { vertex_buffer: vertices, index_buffer: indices, program: program, uniforms }
+        let color = [color.0, color.1, color.2];
+        self.vertex_buffer.push(Vertex { position: position, color: color });
+        self.vertex_buffer.push(Vertex { position: [position[0] + width, position[1]], color: color });
+        self.vertex_buffer.push(Vertex { position: [position[0] + width, position[1] - height], color: color });
+        self.vertex_buffer.push(Vertex { position: [position[0], position[1] - height], color: color });
     }
 
     fn draw(&self, frame: &mut Frame) {
-        frame.draw(&self.vertex_buffer, &self.index_buffer, &self.program, &self.uniforms, &get_params_defualt()).unwrap();
-    }
-}
+        let uniforms = uniform! {
+            matrix: [
+                [self.aspect_ratio, 0.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0, 0.0],
+                [0.0, 0.0, -1.0, 1.0f32],
+            ]
+        };
+        let index_buffer = IndexBuffer::new(&self.display, PrimitiveType::TrianglesList, &self.index_buffer).unwrap();
+        let vertex_buffer = VertexBuffer::new(&self.display, &self.vertex_buffer).unwrap();
 
-pub struct Scene {
-    actors: Vec<Shape>,
-    display: Display,
-    distortion: f32,
-    aspect_ratio: f32,
-
-}
-
-impl Scene {
-    pub fn add_actor(&mut self, shape: Shape) {
-        self.actors.push(shape)
+        frame.draw(&vertex_buffer, &index_buffer, &self.program, &uniforms, &Batch::get_default_draw_params()).unwrap();
     }
 
-    pub fn finish(&mut self, clear_color: (f32, f32, f32)) {
-        let mut frame = self.display.draw();
-        frame.clear_color_and_depth((clear_color.0, clear_color.1, clear_color.2, 0.5), 1.0);
-        for actor in self.actors.iter() {
-            actor.draw(&mut frame);
+    fn get_default_draw_params() -> DrawParameters<'static> {
+        glium::DrawParameters {
+            blend: glium::draw_parameters::Blend::alpha_blending(),
+            polygon_mode: glium::PolygonMode::Fill,
+            .. Default::default()
         }
-        self.actors = Vec::new();
-        frame.finish().unwrap();
     }
-
-
-
-    // pub fn draw_polygon(&mut self, vertecies: Vec<[f32; 2]>, color: (f32, f32, f32, f32)) {
-    //     self.add_actor(Shape::new(vertecies, &self.display, Some(color), None, None, self.distortion, self.aspect_ratio));
-    // }
-    // pub fn draw_polygon_with_shaders(&mut self, vertecies: Vec<[f32; 2]>, vertex: &str, fragment: &str) {
-    //     self.add_actor(Shape::new(vertecies, &self.display, None, Some(vertex), Some(fragment), self.distortion, self.aspect_ratio));
-    // }
-
-
-
-    // pub fn draw_rect(&mut self, position: [f32; 2], width: f32, height: f32, color: (f32,f32,f32,f32)) {
-    //     let vertecies = vec![position, [position[0] + width, position[1]], [position[0] + width, position[1] - height], [position[0], position[1] - height]];
-    //     self.add_actor(Shape::new(vertecies, &self.display, Some(color), None, None, self.distortion, self.aspect_ratio));
-    // }
-    // pub fn draw_rect_with_shaders(&mut self, position: [f32; 2], width: f32, height: f32, vertex: &str, fragment: &str) {
-    //     let vertecies = vec![position, [position[0] + width, position[1]], [position[0] + width, position[1] - height], [position[0], position[1] - height]];
-    //     self.add_actor(Shape::new(vertecies, &self.display, None, Some(vertex), Some(fragment), self.distortion, self.aspect_ratio));
-    // }
-
-
-
-    // pub fn draw_square(&mut self, position: [f32; 2], size: f32, color: (f32,f32,f32,f32)) {
-    //     let vertecies = vec![position, [position[0] + size, position[1]], [position[0] + size, position[1] - size], [position[0], position[1] - size]];
-    //     self.add_actor(Shape::new(vertecies, &self.display, Some(color), None, None, self.distortion, self.aspect_ratio));
-    // }
-    // pub fn draw_square_with_shaders(&mut self, position: [f32; 2], size: f32, vertex: &str, fragment: &str) {
-    //     let vertecies = vec![position, [position[0] + size, position[1]], [position[0] + size, position[1] - size], [position[0], position[1] - size]];
-    //     self.add_actor(Shape::new(vertecies, &self.display, None, Some(vertex), Some(fragment), self.distortion, self.aspect_ratio));
-    // }
-
     
-
-    // pub fn draw_circle(&mut self, position: [f32; 2], radius: f32, color: (f32,f32,f32,f32)) {
-    //     let mut vertecies = vec![position];
-    //     let vertex_count: usize = 48;
-
-    //     for i in 0 .. vertex_count {
-    //         let x = (i as f32 * PI) / 24.0;
-    //         vertecies.push([position[0] + (x).cos() * radius, position[1] + (x).sin() * radius]);
-    //     }
-    //     vertecies.push([position[0] + radius, position[1]]);
-
-    //     self.add_actor(Shape::new(vertecies, &self.display, Some(color), None, None, self.distortion, self.aspect_ratio));
-    // }
-    // pub fn draw_circle_with_shaders(&mut self, position: [f32; 2], radius: f32, vertex: &str, fragment: &str) {
-    //     let mut vertecies = vec![position];
-    //     let vertex_count: usize = 48;
-
-    //     for i in 0 .. vertex_count {
-    //         let x = (i as f32 * PI) / 24.0;
-    //         vertecies.push([position[0] + (x).cos() * radius, position[1] + (x).sin() * radius]);
-    //     }
-    //     vertecies.push([position[0] + radius, position[1]]);
-        
-    //     self.add_actor(Shape::new(vertecies, &self.display, None, Some(vertex), Some(fragment), self.distortion, self.aspect_ratio));
-    // }
 }
-
 
 
 pub struct App {
-    pub scene: Scene,
-    aspect_ratio: f32
+    pub batch: Batch,
 }
 
 impl App {
@@ -405,8 +221,12 @@ impl App {
 
         let window = glutin::window::WindowBuilder::new().with_title(title).with_window_icon(Some(icon));
         let context_buffer = glutin::ContextBuilder::new().with_depth_buffer(24);
-        App {scene: Scene { actors: Vec::new(), display: glium::Display::new(window, context_buffer, &event_loop).unwrap(), distortion: 400.0, aspect_ratio: 16.0 / 9.0 }, aspect_ratio: 16.0 / 9.0 }
+        let batch = Batch::new(glium::Display::new(window, context_buffer, &event_loop).unwrap(), 16.0 / 9.0);
+        App {
+            batch
+        }
     }
+
     pub fn init_with_loop(title: &str) -> (Self, EventLoop<()>) {
         let mut icon: Vec<u8> = vec![];
         let mut counter = 0;
@@ -431,15 +251,20 @@ impl App {
         }
         let icon = glutin::window::Icon::from_rgba(icon, 16, 16).expect("BADICON");
 
-        let event_loop = glium::glutin::event_loop::EventLoop::new();
-        let window = glutin::window::WindowBuilder::new().with_title(title).with_window_icon(Some(icon)).with_transparent(true);
+        let event_loop = new_event_loop();
+        let window = glutin::window::WindowBuilder::new().with_title(title).with_window_icon(Some(icon));
         let context_buffer = glutin::ContextBuilder::new().with_depth_buffer(24);
-        (App {scene: Scene { actors: Vec::new(), display: glium::Display::new(window, context_buffer, &event_loop).unwrap(), distortion: 400.0, aspect_ratio: 16.0 / 9.0 }, aspect_ratio: 16.0 / 9.0 }, event_loop)
+        let batch = Batch::new(glium::Display::new(window, context_buffer, &event_loop).unwrap(), 16.0 / 9.0);
+        (App {
+            batch
+            }, 
+         event_loop
+        )
     }
 
-    pub fn set_world_size(&mut self, size: f32) {
-        self.scene.distortion = size;
-    }
+    // pub fn set_world_size(&mut self, size: f32) {
+    //     self.scene.distortion = size;
+    // }
 
     pub fn say_hello(&self) {
         println!("Hello from App")
@@ -449,131 +274,109 @@ impl App {
     //     crate::run(event_loop, input_code)
     // }
 
-    pub fn draw_circle_with_shaders(&mut self, position: [f32; 2], radius: f32, vertex: &str, fragment: &str) {
-        let mut vertecies = vec![position];
-        let vertex_count: usize = 48;
+    // pub fn draw_circle_with_shaders(&mut self, position: [f32; 2], radius: f32, vertex: &str, fragment: &str) {
+    //     let mut vertecies = vec![position];
+    //     let vertex_count: usize = 48;
 
-        for i in 0 .. vertex_count {
-            let x = (i as f32 * PI) / 24.0;
-            vertecies.push([position[0] + (x).cos() * radius, position[1] + (x).sin() * radius]);
-        }
-        vertecies.push([position[0] + radius, position[1]]);
+    //     for i in 0 .. vertex_count {
+    //         let x = (i as f32 * PI) / 24.0;
+    //         vertecies.push([position[0] + (x).cos() * radius, position[1] + (x).sin() * radius]);
+    //     }
+    //     vertecies.push([position[0] + radius, position[1]]);
 
-        let shape = Shape::new(vertecies, &self.scene.display, None, Some(vertex), Some(fragment), self.scene.distortion, self.aspect_ratio);
-        // if uniform.is_some() {
-        //     let uniform = uniform.unwrap();
-        //     shape.add_uniform(uniform.0, uniform.1);
-        // }
+    //     let shape = Shape::new(vertecies, &self.scene.display, None, Some(vertex), Some(fragment), self.scene.distortion, self.aspect_ratio);
+    //     // if uniform.is_some() {
+    //     //     let uniform = uniform.unwrap();
+    //     //     shape.add_uniform(uniform.0, uniform.1);
+    //     // }
 
         
-        self.scene.add_actor(shape);
-    }
+    //     self.scene.add_actor(shape);
+    // }
 
-    pub fn draw_polygon(&mut self, vertecies: Vec<[f32; 2]>, color: (f32, f32, f32, f32)) {
-        self.scene.add_actor(Shape::new(vertecies, &self.scene.display, Some(color), None, None, self.scene.distortion, self.aspect_ratio));
-    }
-    pub fn draw_polygon_with_shaders(&mut self, vertecies: Vec<[f32; 2]>, vertex: &str, fragment: &str) {
-        self.scene.add_actor(Shape::new(vertecies, &self.scene.display, None, Some(vertex), Some(fragment), self.scene.distortion, self.aspect_ratio));
-    }
+    // pub fn draw_polygon(&mut self, vertecies: Vec<[f32; 2]>, color: (f32, f32, f32, f32)) {
+    //     self.scene.add_actor(Shape::new(vertecies, &self.scene.display, Some(color), None, None, self.scene.distortion, self.aspect_ratio));
+    // }
+    // pub fn draw_polygon_with_shaders(&mut self, vertecies: Vec<[f32; 2]>, vertex: &str, fragment: &str) {
+    //     self.scene.add_actor(Shape::new(vertecies, &self.scene.display, None, Some(vertex), Some(fragment), self.scene.distortion, self.aspect_ratio));
+    // }
 
-    pub fn draw_rect(&mut self, position: [f32; 2], width: f32, height: f32, color: (f32,f32,f32,f32)) {
-        let vertecies = vec![position, [position[0] + width, position[1]], [position[0] + width, position[1] - height], [position[0], position[1] - height]];
-        self.scene.add_actor(Shape::new(vertecies, &self.scene.display, Some(color), None, None, self.scene.distortion, self.aspect_ratio));
-    }
-    pub fn draw_rect_with_shaders(&mut self, position: [f32; 2], width: f32, height: f32, vertex: &str, fragment: &str) {
-        let vertecies = vec![position, [position[0] + width, position[1]], [position[0] + width, position[1] - height], [position[0], position[1] - height]];
-        self.scene.add_actor(Shape::new(vertecies, &self.scene.display, None, Some(vertex), Some(fragment), self.scene.distortion, self.aspect_ratio));
-    }
+    // pub fn draw_rect(&mut self, position: [f32; 2], width: f32, height: f32, color: (f32,f32,f32,f32)) {
+    //     let vertecies = vec![position, [position[0] + width, position[1]], [position[0] + width, position[1] - height], [position[0], position[1] - height]];
+    //     self.scene.add_actor(Shape::new(vertecies, &self.scene.display, Some(color), None, None, self.scene.distortion, self.aspect_ratio));
+    // }
+    // pub fn draw_rect_with_shaders(&mut self, position: [f32; 2], width: f32, height: f32, vertex: &str, fragment: &str) {
+    //     let vertecies = vec![position, [position[0] + width, position[1]], [position[0] + width, position[1] - height], [position[0], position[1] - height]];
+    //     self.scene.add_actor(Shape::new(vertecies, &self.scene.display, None, Some(vertex), Some(fragment), self.scene.distortion, self.aspect_ratio));
+    // }
 
-    pub fn draw_square(&mut self, position: [f32; 2], size: f32, color: (f32,f32,f32,f32)) {
-        let vertecies = vec![position, [position[0] + size, position[1]], [position[0] + size, position[1] - size], [position[0], position[1] - size]];
-        self.scene.add_actor(Shape::new(vertecies, &self.scene.display, Some(color), None, None, self.scene.distortion, self.aspect_ratio));
-    }
-    pub fn draw_square_with_shaders(&mut self, position: [f32; 2], size: f32, vertex: &str, fragment: &str) {
-        let vertecies = vec![position, [position[0] + size, position[1]], [position[0] + size, position[1] - size], [position[0], position[1] - size]];
-        self.scene.add_actor(Shape::new(vertecies, &self.scene.display, None, Some(vertex), Some(fragment), self.scene.distortion, self.aspect_ratio));
-    }
+    // pub fn draw_square(&mut self, position: [f32; 2], size: f32, color: (f32,f32,f32,f32)) {
+    //     let vertecies = vec![position, [position[0] + size, position[1]], [position[0] + size, position[1] - size], [position[0], position[1] - size]];
+    //     self.scene.add_actor(Shape::new(vertecies, &self.scene.display, Some(color), None, None, self.scene.distortion, self.aspect_ratio));
+    // }
+    // pub fn draw_square_with_shaders(&mut self, position: [f32; 2], size: f32, vertex: &str, fragment: &str) {
+    //     let vertecies = vec![position, [position[0] + size, position[1]], [position[0] + size, position[1] - size], [position[0], position[1] - size]];
+    //     self.scene.add_actor(Shape::new(vertecies, &self.scene.display, None, Some(vertex), Some(fragment), self.scene.distortion, self.aspect_ratio));
+    // }
 
-    pub fn draw_circle(&mut self, position: [f32; 2], radius: f32, color: (f32,f32,f32,f32)) {
-        let mut vertecies = vec![position];
-        let vertex_count: usize = 48;
+    // pub fn draw_circle(&mut self, position: [f32; 2], radius: f32, color: (f32,f32,f32,f32)) {
+    //     let mut vertecies = vec![position];
+    //     let vertex_count: usize = 48;
 
-        for i in 0 .. vertex_count {
-            let x = (i as f32 * PI) / 24.0;
-            vertecies.push([position[0] + (x).cos() * radius, position[1] + (x).sin() * radius]);
-        }
-        vertecies.push([position[0] + radius, position[1]]);
+    //     for i in 0 .. vertex_count {
+    //         let x = (i as f32 * PI) / 24.0;
+    //         vertecies.push([position[0] + (x).cos() * radius, position[1] + (x).sin() * radius]);
+    //     }
+    //     vertecies.push([position[0] + radius, position[1]]);
 
-        self.scene.add_actor(Shape::new(vertecies, &self.scene.display, Some(color), None, None, self.scene.distortion, self.aspect_ratio));
-    }
+    //     self.scene.add_actor(Shape::new(vertecies, &self.scene.display, Some(color), None, None, self.scene.distortion, self.aspect_ratio));
+    // }
 
 
 
-    pub fn save_frame(&mut self, color: (f32,f32,f32), events: &Vec<Event<()>>) -> Action {
+    pub fn save_frame(&mut self, color: (f32,f32,f32), events: &Vec<Event<()>>) {
         for event in events.iter() {
             match event {
                 glutin::event::Event::WindowEvent { event, .. } => match event {
                         glutin::event::WindowEvent::Resized(u) => {
-                            self.aspect_ratio = u.height as f32 / u.width as f32 ;
+                            self.batch.aspect_ratio = u.height as f32 / u.width as f32 ;
                         }
                     _ => (),
                 },
                 _ => (),
             }
         };
-        self.scene.finish(color);
-        Action::Continue
+        // self.batch.finish(color);
+        let mut frame = self.batch.display.draw();
+        frame.clear_color_and_depth((color.0, color.1, color.2, 0.5), 1.0);
+        self.batch.draw(&mut frame);
+        self.batch.vertex_buffer = vec![];
+        self.batch.index_buffer = vec![];
+        frame.finish().unwrap();
     }
-}
-
-pub fn circle(app: &mut App, position: [f32; 2],radius: f32, color: (f32,f32,f32,f32)) {
-    app.draw_circle(position, radius, color);
-}
-pub fn rect(app: &mut App, position: [f32; 2], width: f32, height: f32, color: (f32,f32,f32,f32)) {
-    app.draw_rect(position, width, height, color);
-}
-pub fn square(app: &mut App, position: [f32; 2], size: f32, color: (f32,f32,f32,f32)) {
-    app.draw_square(position, size, color);
-}
-pub fn polygon_from(app: &mut App, vertecies: Vec<[f32; 2]>, color: (f32,f32,f32,f32)) {
-    app.draw_polygon(vertecies, color);
-}
-pub fn polygon(app: &mut App, vertecies: Vec<f32>, color: (f32,f32,f32,f32)) {
-    let vertecies = {
-        let mut verts: Vec<[f32;2]> = vec![];
-        for index in 0 .. vertecies.len() {
-            if index % 2 == 0 {
-                verts.push([vertecies[index], vertecies[index + 1]])
-            }
-        }
-        verts
-    };
-    app.draw_polygon(vertecies, color);
 }
 
 pub fn new_event_loop() -> EventLoop<()> {
     glium::glutin::event_loop::EventLoop::new()
 }
 
-pub fn x_is_pressed(events: &Vec<Event<()>>, value: &str) -> bool {
-    let value = VirtualKeyCode::from_str(value).unwrap();
+pub fn x_is_pressed(events: &Vec<Event<()>>) -> Option<glium::glutin::event::VirtualKeyCode> {
     for event in events.iter() {
         match event {
             glutin::event::Event::WindowEvent { event, .. } => match event {
                 glutin::event::WindowEvent::KeyboardInput { device_id: _, input, is_synthetic } => {
-                    if input.virtual_keycode.unwrap() as usize == value as usize && !is_synthetic && input.state == glium::glutin::event::ElementState::Pressed {return true}
-                    return false;
+                    if !is_synthetic && input.state == glium::glutin::event::ElementState::Pressed {return Some(input.virtual_keycode.unwrap())}
                 },
                 _ => (),
             },
             _ => (),
         }
     };
-    false
+    None
 }
 
 #[derive(EnumString)]
-pub enum VirtualKeyCode {
+enum MyKeyCode {
     /// The '1' key over the letters.
     Key1,
     /// The '2' key over the letters.
