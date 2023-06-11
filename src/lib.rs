@@ -270,69 +270,9 @@ impl App {
         println!("Hello from App")
     }
 
-    // pub fn run<F>(&mut self, event_loop: EventLoop<()>, mut input_code: F) where F: 'static + FnMut(&Vec<Event<'_, ()>>) {
-    //     crate::run(event_loop, input_code)
-    // }
-
-    // pub fn draw_circle_with_shaders(&mut self, position: [f32; 2], radius: f32, vertex: &str, fragment: &str) {
-    //     let mut vertecies = vec![position];
-    //     let vertex_count: usize = 48;
-
-    //     for i in 0 .. vertex_count {
-    //         let x = (i as f32 * PI) / 24.0;
-    //         vertecies.push([position[0] + (x).cos() * radius, position[1] + (x).sin() * radius]);
-    //     }
-    //     vertecies.push([position[0] + radius, position[1]]);
-
-    //     let shape = Shape::new(vertecies, &self.scene.display, None, Some(vertex), Some(fragment), self.scene.distortion, self.aspect_ratio);
-    //     // if uniform.is_some() {
-    //     //     let uniform = uniform.unwrap();
-    //     //     shape.add_uniform(uniform.0, uniform.1);
-    //     // }
-
-        
-    //     self.scene.add_actor(shape);
-    // }
-
-    // pub fn draw_polygon(&mut self, vertecies: Vec<[f32; 2]>, color: (f32, f32, f32, f32)) {
-    //     self.scene.add_actor(Shape::new(vertecies, &self.scene.display, Some(color), None, None, self.scene.distortion, self.aspect_ratio));
-    // }
-    // pub fn draw_polygon_with_shaders(&mut self, vertecies: Vec<[f32; 2]>, vertex: &str, fragment: &str) {
-    //     self.scene.add_actor(Shape::new(vertecies, &self.scene.display, None, Some(vertex), Some(fragment), self.scene.distortion, self.aspect_ratio));
-    // }
-
-    // pub fn draw_rect(&mut self, position: [f32; 2], width: f32, height: f32, color: (f32,f32,f32,f32)) {
-    //     let vertecies = vec![position, [position[0] + width, position[1]], [position[0] + width, position[1] - height], [position[0], position[1] - height]];
-    //     self.scene.add_actor(Shape::new(vertecies, &self.scene.display, Some(color), None, None, self.scene.distortion, self.aspect_ratio));
-    // }
-    // pub fn draw_rect_with_shaders(&mut self, position: [f32; 2], width: f32, height: f32, vertex: &str, fragment: &str) {
-    //     let vertecies = vec![position, [position[0] + width, position[1]], [position[0] + width, position[1] - height], [position[0], position[1] - height]];
-    //     self.scene.add_actor(Shape::new(vertecies, &self.scene.display, None, Some(vertex), Some(fragment), self.scene.distortion, self.aspect_ratio));
-    // }
-
-    // pub fn draw_square(&mut self, position: [f32; 2], size: f32, color: (f32,f32,f32,f32)) {
-    //     let vertecies = vec![position, [position[0] + size, position[1]], [position[0] + size, position[1] - size], [position[0], position[1] - size]];
-    //     self.scene.add_actor(Shape::new(vertecies, &self.scene.display, Some(color), None, None, self.scene.distortion, self.aspect_ratio));
-    // }
-    // pub fn draw_square_with_shaders(&mut self, position: [f32; 2], size: f32, vertex: &str, fragment: &str) {
-    //     let vertecies = vec![position, [position[0] + size, position[1]], [position[0] + size, position[1] - size], [position[0], position[1] - size]];
-    //     self.scene.add_actor(Shape::new(vertecies, &self.scene.display, None, Some(vertex), Some(fragment), self.scene.distortion, self.aspect_ratio));
-    // }
-
-    // pub fn draw_circle(&mut self, position: [f32; 2], radius: f32, color: (f32,f32,f32,f32)) {
-    //     let mut vertecies = vec![position];
-    //     let vertex_count: usize = 48;
-
-    //     for i in 0 .. vertex_count {
-    //         let x = (i as f32 * PI) / 24.0;
-    //         vertecies.push([position[0] + (x).cos() * radius, position[1] + (x).sin() * radius]);
-    //     }
-    //     vertecies.push([position[0] + radius, position[1]]);
-
-    //     self.scene.add_actor(Shape::new(vertecies, &self.scene.display, Some(color), None, None, self.scene.distortion, self.aspect_ratio));
-    // }
-
-
+    pub fn quad(&mut self, position: [f32; 2], width: f32, height: f32, color: (f32, f32, f32)) {
+        self.batch.add_quad(position, width, height, color);
+    }
 
     pub fn save_frame(&mut self, color: (f32,f32,f32), events: &Vec<Event<()>>) {
         for event in events.iter() {
@@ -348,7 +288,7 @@ impl App {
         };
         // self.batch.finish(color);
         let mut frame = self.batch.display.draw();
-        frame.clear_color_and_depth((color.0, color.1, color.2, 0.5), 1.0);
+        frame.clear_color_and_depth((color.0, color.1, color.2, 1.0), 1.0);
         self.batch.draw(&mut frame);
         self.batch.vertex_buffer = vec![];
         self.batch.index_buffer = vec![];
@@ -356,11 +296,12 @@ impl App {
     }
 }
 
+
 pub fn new_event_loop() -> EventLoop<()> {
     glium::glutin::event_loop::EventLoop::new()
 }
 
-pub fn x_is_pressed(events: &Vec<Event<()>>) -> Option<glium::glutin::event::VirtualKeyCode> {
+pub fn n_is_pressed(events: &Vec<Event<()>>) -> Option<glium::glutin::event::VirtualKeyCode> {
     for event in events.iter() {
         match event {
             glutin::event::Event::WindowEvent { event, .. } => match event {
@@ -373,204 +314,4 @@ pub fn x_is_pressed(events: &Vec<Event<()>>) -> Option<glium::glutin::event::Vir
         }
     };
     None
-}
-
-#[derive(EnumString)]
-enum MyKeyCode {
-    /// The '1' key over the letters.
-    Key1,
-    /// The '2' key over the letters.
-    Key2,
-    /// The '3' key over the letters.
-    Key3,
-    /// The '4' key over the letters.
-    Key4,
-    /// The '5' key over the letters.
-    Key5,
-    /// The '6' key over the letters.
-    Key6,
-    /// The '7' key over the letters.
-    Key7,
-    /// The '8' key over the letters.
-    Key8,
-    /// The '9' key over the letters.
-    Key9,
-    /// The '0' key over the 'O' and 'P' keys.
-    Key0,
-
-    A,
-    B,
-    C,
-    D,
-    E,
-    F,
-    G,
-    H,
-    I,
-    J,
-    K,
-    L,
-    M,
-    N,
-    O,
-    P,
-    Q,
-    R,
-    S,
-    T,
-    U,
-    V,
-    W,
-    X,
-    Y,
-    Z,
-
-    /// The Escape key, next to F1.
-    Escape,
-
-    F1,
-    F2,
-    F3,
-    F4,
-    F5,
-    F6,
-    F7,
-    F8,
-    F9,
-    F10,
-    F11,
-    F12,
-    F13,
-    F14,
-    F15,
-    F16,
-    F17,
-    F18,
-    F19,
-    F20,
-    F21,
-    F22,
-    F23,
-    F24,
-
-    /// Print Screen/SysRq.
-    Snapshot,
-    /// Scroll Lock.
-    Scroll,
-    /// Pause/Break key, next to Scroll lock.
-    Pause,
-
-    /// `Insert`, next to Backspace.
-    Insert,
-    Home,
-    Delete,
-    End,
-    PageDown,
-    PageUp,
-
-    Left,
-    Up,
-    Right,
-    Down,
-
-    /// The Backspace key, right over Enter.
-    // TODO: rename
-    Back,
-    /// The Enter key.
-    Return,
-    /// The space bar.
-    Space,
-
-    /// The "Compose" key on Linux.
-    Compose,
-
-    Caret,
-
-    Numlock,
-    Numpad0,
-    Numpad1,
-    Numpad2,
-    Numpad3,
-    Numpad4,
-    Numpad5,
-    Numpad6,
-    Numpad7,
-    Numpad8,
-    Numpad9,
-    NumpadAdd,
-    NumpadDivide,
-    NumpadDecimal,
-    NumpadComma,
-    NumpadEnter,
-    NumpadEquals,
-    NumpadMultiply,
-    NumpadSubtract,
-
-    AbntC1,
-    AbntC2,
-    Apostrophe,
-    Apps,
-    Asterisk,
-    At,
-    Ax,
-    Backslash,
-    Calculator,
-    Capital,
-    Colon,
-    Comma,
-    Convert,
-    Equals,
-    Grave,
-    Kana,
-    Kanji,
-    LAlt,
-    LBracket,
-    LControl,
-    LShift,
-    LWin,
-    Mail,
-    MediaSelect,
-    MediaStop,
-    Minus,
-    Mute,
-    MyComputer,
-    // also called "Next"
-    NavigateForward,
-    // also called "Prior"
-    NavigateBackward,
-    NextTrack,
-    NoConvert,
-    OEM102,
-    Period,
-    PlayPause,
-    Plus,
-    Power,
-    PrevTrack,
-    RAlt,
-    RBracket,
-    RControl,
-    RShift,
-    RWin,
-    Semicolon,
-    Slash,
-    Sleep,
-    Stop,
-    Sysrq,
-    Tab,
-    Underline,
-    Unlabeled,
-    VolumeDown,
-    VolumeUp,
-    Wake,
-    WebBack,
-    WebFavorites,
-    WebForward,
-    WebHome,
-    WebRefresh,
-    WebSearch,
-    WebStop,
-    Yen,
-    Copy,
-    Paste,
-    Cut,
 }
