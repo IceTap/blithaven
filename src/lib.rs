@@ -1,4 +1,3 @@
-
 //!
 //! BlitHaven is a 2-Dimensional Game Engine
 //! 
@@ -25,12 +24,13 @@
 //! ```
 
 #![allow(dead_code)]
+use earcutr::earcut;
 use glium::{glutin, DrawParameters};
+use std::io::Read;
 use std::time::{Duration, Instant};
 use glium::glutin::event_loop::{EventLoop, ControlFlow};
 use glium::glutin::event::{Event, StartCause};
 use glium::*;
-use strum_macros::EnumString;
 
 enum Action {
     Stop,
@@ -96,9 +96,11 @@ pub fn run<F>(event_loop: EventLoop<()>, mut input_code: F)->! where F: 'static 
 #[derive(Clone, Copy, Debug)]
 struct Vertex {
     position: [f32; 2],
-    color: [f32; 3]
+    color: [f32; 3],
+    style: i32,
+    tex_coord: [f32; 2]
 }
-implement_vertex!(Vertex, position, color);
+implement_vertex!(Vertex, position, color, style, tex_coord);
 
 
 use glium::{Display, index::{PrimitiveType, IndexBuffer}, vertex::VertexBuffer, Program, Frame};
@@ -107,47 +109,27 @@ pub struct Batch {
     index_buffer: Vec<u16>,
     program: Program,
     display: Display,
-    aspect_ratio: f32
+    aspect_ratio: f32,
+    distortion: f32,
+    positional_offset: [f32; 2]
 }
 
 impl Batch {
     fn new(display: Display, aspect_ratio: f32) -> Self {
-        let program = {
-                Program::from_source(&display,
-                    r#"
-                    #version 140
-    
-                    in vec2 position;
-                    in vec3 color;
-    
-                    out vec4 v_color;
-    
-                    uniform mat4 matrix;
-    
-                    void main() {{
-                        v_color = vec4(color, 1.0);
-                        gl_Position = matrix * vec4(position, 0.0, 1.0);
-                    }}
-                    "#,
-                    r#"
-                        #version 140
-    
-                        in vec4 v_color;
-    
-                        out vec4 f_color;
-    
-                        void main() {
-    
-                            f_color = v_color;
-                        }
-                    "#,
-                    None
-                ).unwrap()
-        };
-        Self { vertex_buffer: vec![], index_buffer: vec![], program: program, display: display, aspect_ratio: aspect_ratio }
+        use std::fs::File;
+
+        let mut vertex_shader = String::new();
+        let _ = File::open(r"./src/shaders/vertex.glsl").expect("Could not open vertex file").read_to_string(&mut vertex_shader);
+
+        let mut fragment_shader = String::new();
+        let _ = File::open(r"./src/shaders/fragment.glsl").expect("Could not open fragment file").read_to_string(&mut fragment_shader);
+
+        let program = { Program::from_source(&display, &vertex_shader, &fragment_shader, None).unwrap() };
+
+        Self { vertex_buffer: vec![], index_buffer: vec![], program, display, aspect_ratio, distortion: 400.0, positional_offset: [0.0,0.0] }
     }
     
-    pub fn add_quad(&mut self, position: [f32; 2], width: f32, height: f32, color: (f32, f32, f32)) {
+    fn add_quad(&mut self, position: [f32; 2], width: f32, height: f32, color: (f32, f32, f32), style: i32) {
         let index_buffer_size = self.vertex_buffer.len() as u16;
         self.index_buffer.push(index_buffer_size + 0);
         self.index_buffer.push(index_buffer_size + 1);
@@ -158,27 +140,61 @@ impl Batch {
         self.index_buffer.push(index_buffer_size + 2);
 
         let color = [color.0, color.1, color.2];
-        self.vertex_buffer.push(Vertex { position: position, color: color });
-        self.vertex_buffer.push(Vertex { position: [position[0] + width, position[1]], color: color });
-        self.vertex_buffer.push(Vertex { position: [position[0] + width, position[1] - height], color: color });
-        self.vertex_buffer.push(Vertex { position: [position[0], position[1] - height], color: color });
+        self.vertex_buffer.push(Vertex { position, color, style, tex_coord: [0.0,1.0] });
+        self.vertex_buffer.push(Vertex { position: [position[0] + width, position[1]], color, style, tex_coord: [1.0,1.0] });
+        self.vertex_buffer.push(Vertex { position: [position[0] + width, position[1] - height], color, style, tex_coord: [1.0, 0.0] });
+        self.vertex_buffer.push(Vertex { position: [position[0], position[1] - height], color, style, tex_coord: [0.0,0.0] });
     }
 
+    /// WIP for pushing a polygon to the batch 
+    pub fn add_polygon(&mut self, points: Vec<f64>, color: (f32, f32, f32)) {
+        let index_buffer_initial_size = self.vertex_buffer.len();
+        let shape_index_buffer = earcut(&points, &[], 2);
+
+
+        for index in shape_index_buffer.unwrap_or_default().iter() {
+            self.index_buffer.push((index_buffer_initial_size + index) as u16)
+        }
+        
+        let color = [color.0, color.1, color.2];
+        let mut current_point = [0.0,0.0];
+        for (index, point) in points.iter().enumerate() {
+            if index % 2 == 0 {
+                current_point[0] = *point as f32;
+            }
+            else {
+                current_point[1] = *point as f32;
+                self.vertex_buffer.push(Vertex { position: current_point, color, style: 0, tex_coord: [0.0,0.0] });
+            }
+        }
+    }
+
+    /// ## Main Draw Call
+    ///
+    /// Creates basic uniform that implements matrix for aspect ratio and unit correction
+    ///
+    /// -1,0 in z slot draws all shapes 1 unit away from the camera but distance is not relevant
+    /// because there is no perspective
     fn draw(&self, frame: &mut Frame) {
         let uniforms = uniform! {
             matrix: [
-                [self.aspect_ratio, 0.0, 0.0, 0.0],
-                [0.0, 1.0, 0.0, 0.0],
+                [self.aspect_ratio / self.distortion, 0.0, 0.0, 0.0],
+                [0.0, 1.0 / self.distortion, 0.0, 0.0],
                 [0.0, 0.0, 1.0, 0.0],
-                [0.0, 0.0, -1.0, 1.0f32],
+                [self.positional_offset[0], self.positional_offset[1], -1.0, 1.0f32],
             ]
         };
         let index_buffer = IndexBuffer::new(&self.display, PrimitiveType::TrianglesList, &self.index_buffer).unwrap();
         let vertex_buffer = VertexBuffer::new(&self.display, &self.vertex_buffer).unwrap();
+        
+        // built in draw call for the frame
+        frame.draw(&vertex_buffer, &index_buffer, &self.program, &uniforms, &Batch::get_default_draw_params()).unwrap(); }
 
-        frame.draw(&vertex_buffer, &index_buffer, &self.program, &uniforms, &Batch::get_default_draw_params()).unwrap();
-    }
-
+    /// Defualt parameters used in the draw function specified above
+    /// ```
+    /// frame.draw(&vertex_buffer, &index_buffer, &self.program, &uniforms,
+    /// &Batch::get_default_draw_params());
+    /// ```
     fn get_default_draw_params() -> DrawParameters<'static> {
         glium::DrawParameters {
             blend: glium::draw_parameters::Blend::alpha_blending(),
@@ -189,12 +205,18 @@ impl Batch {
     
 }
 
-
+/// ## App Struct
+///
+/// Has a batch
 pub struct App {
     pub batch: Batch,
 }
 
+/// ### Batch Implementation
 impl App {
+    /// Initializer method
+    ///
+    /// Creates an icon seen on windows
     pub fn init(title: &str, event_loop: &EventLoop<()>) -> Self {
         let mut icon: Vec<u8> = vec![];
         let mut counter = 0;
@@ -222,11 +244,13 @@ impl App {
         let window = glutin::window::WindowBuilder::new().with_title(title).with_window_icon(Some(icon));
         let context_buffer = glutin::ContextBuilder::new().with_depth_buffer(24);
         let batch = Batch::new(glium::Display::new(window, context_buffer, &event_loop).unwrap(), 16.0 / 9.0);
-        App {
-            batch
-        }
+        return App { batch }
     }
 
+    /// Alternate Initializer method
+    ///
+    /// Does not take an event loop but returns one back to user
+    /// **Recomended**
     pub fn init_with_loop(title: &str) -> (Self, EventLoop<()>) {
         let mut icon: Vec<u8> = vec![];
         let mut counter = 0;
@@ -255,23 +279,32 @@ impl App {
         let window = glutin::window::WindowBuilder::new().with_title(title).with_window_icon(Some(icon));
         let context_buffer = glutin::ContextBuilder::new().with_depth_buffer(24);
         let batch = Batch::new(glium::Display::new(window, context_buffer, &event_loop).unwrap(), 16.0 / 9.0);
-        (App {
-            batch
-            }, 
-         event_loop
-        )
+        return ( App { batch }, event_loop )
     }
 
-    // pub fn set_world_size(&mut self, size: f32) {
-    //     self.scene.distortion = size;
-    // }
+    pub fn set_zoom(&mut self, size: f32) {
+        self.batch.distortion = size;
+    }
+
+    pub fn set_positional_offset(&mut self, offset: [f32; 2]) {
+        self.batch.positional_offset = offset;
+    }
+
+    pub fn add_to_positional_offset(&mut self, offset: [f32; 2]) {
+        self.batch.positional_offset[0] += offset[0];
+        self.batch.positional_offset[1] += offset[1];
+    }
 
     pub fn say_hello(&self) {
         println!("Hello from App")
     }
 
     pub fn quad(&mut self, position: [f32; 2], width: f32, height: f32, color: (f32, f32, f32)) {
-        self.batch.add_quad(position, width, height, color);
+        self.batch.add_quad(position, width, height, color, 0);
+    }
+
+    pub fn circle(&mut self, position: [f32; 2], radius: f32, color: (f32,f32,f32)) {
+        self.batch.add_quad([position[0] - radius / 2.0, position[1] + radius / 2.0 ], radius, radius, color, 1)
     }
 
     pub fn save_frame(&mut self, color: (f32,f32,f32), events: &Vec<Event<()>>) {
