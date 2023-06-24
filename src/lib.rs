@@ -9,7 +9,6 @@ use glium::glutin::event_loop::EventLoop;
 use glium::glutin::event_loop::ControlFlow;
 use glium::glutin::event::Event;
 use glium::glutin::event::StartCause;
-pub mod keycode;
 
 enum Action {
     Stop,
