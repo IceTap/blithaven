@@ -1,36 +1,15 @@
-//!
-//! BlitHaven is a 2-Dimensional Game Engine
-//! 
-//! 
- 
-//! # Example
-//! 
-//! ```
-//! 
-//! use blithaven::*;
-//! 
-//! fn main() {
-//!     
-//!     let mut app = App::init("test");
-//! 
-//!     blithaven::start_loop(app.event_loop, move | _events | {
-//!         app.scene.draw_polygon(vec![[0.0,0.0], [0.5,0.0], [0.5,0.5]], (1.0,0.0,0.0,1.0));
-//! 
-//!         app.scene.save_frame((0.2,0.2,0.2)).finish().unwrap();
-//!         Action::Continue
-//!     });
-//! }
-//! 
-//! ```
-
 #![allow(dead_code)]
 use earcutr::earcut;
-use glium::{glutin, DrawParameters};
+use glium::glutin;
+use glium::DrawParameters;
 use std::io::Read;
-use std::time::{Duration, Instant};
-use glium::glutin::event_loop::{EventLoop, ControlFlow};
-use glium::glutin::event::{Event, StartCause};
-use glium::*;
+use std::time::Duration;
+use std::time::Instant;
+use glium::glutin::event_loop::EventLoop;
+use glium::glutin::event_loop::ControlFlow;
+use glium::glutin::event::Event;
+use glium::glutin::event::StartCause;
+pub mod keycode;
 
 enum Action {
     Stop,
@@ -100,10 +79,9 @@ struct Vertex {
     style: i32,
     tex_coord: [f32; 2]
 }
-implement_vertex!(Vertex, position, color, style, tex_coord);
+glium::implement_vertex!(Vertex, position, color, style, tex_coord);
 
-
-use glium::{Display, index::{PrimitiveType, IndexBuffer}, vertex::VertexBuffer, Program, Frame};
+use glium::{Display, index::{PrimitiveType, IndexBuffer}, vertex::VertexBuffer, Program, Frame, Surface};
 pub struct Batch {
     vertex_buffer: Vec<Vertex>,
     index_buffer: Vec<u16>,
@@ -126,7 +104,7 @@ impl Batch {
 
         let program = { Program::from_source(&display, &vertex_shader, &fragment_shader, None).unwrap() };
 
-        Self { vertex_buffer: vec![], index_buffer: vec![], program, display, aspect_ratio, distortion: 400.0, positional_offset: [0.0,0.0] }
+        Self { vertex_buffer: vec![], index_buffer: vec![], program, display, aspect_ratio, distortion: 1.0, positional_offset: [0.0,0.0] }
     }
     
     fn add_quad(&mut self, position: [f32; 2], width: f32, height: f32, color: (f32, f32, f32), style: i32) {
@@ -146,7 +124,9 @@ impl Batch {
         self.vertex_buffer.push(Vertex { position: [position[0], position[1] - height], color, style, tex_coord: [0.0,0.0] });
     }
 
-    /// WIP for pushing a polygon to the batch 
+    // Pushing an n sided polygon to the batch
+    // I'm not sure about the performance impact of this function 
+    // texture coordinates do not work
     pub fn add_polygon(&mut self, points: Vec<f64>, color: (f32, f32, f32)) {
         let index_buffer_initial_size = self.vertex_buffer.len();
         let shape_index_buffer = earcut(&points, &[], 2);
@@ -169,14 +149,8 @@ impl Batch {
         }
     }
 
-    /// ## Main Draw Call
-    ///
-    /// Creates basic uniform that implements matrix for aspect ratio and unit correction
-    ///
-    /// -1,0 in z slot draws all shapes 1 unit away from the camera but distance is not relevant
-    /// because there is no perspective
     fn draw(&self, frame: &mut Frame) {
-        let uniforms = uniform! {
+        let uniforms = glium::uniform! {
             matrix: [
                 [self.aspect_ratio / self.distortion, 0.0, 0.0, 0.0],
                 [0.0, 1.0 / self.distortion, 0.0, 0.0],
@@ -187,14 +161,8 @@ impl Batch {
         let index_buffer = IndexBuffer::new(&self.display, PrimitiveType::TrianglesList, &self.index_buffer).unwrap();
         let vertex_buffer = VertexBuffer::new(&self.display, &self.vertex_buffer).unwrap();
         
-        // built in draw call for the frame
         frame.draw(&vertex_buffer, &index_buffer, &self.program, &uniforms, &Batch::get_default_draw_params()).unwrap(); }
 
-    /// Defualt parameters used in the draw function specified above
-    /// ```
-    /// frame.draw(&vertex_buffer, &index_buffer, &self.program, &uniforms,
-    /// &Batch::get_default_draw_params());
-    /// ```
     fn get_default_draw_params() -> DrawParameters<'static> {
         glium::DrawParameters {
             blend: glium::draw_parameters::Blend::alpha_blending(),
@@ -205,18 +173,11 @@ impl Batch {
     
 }
 
-/// ## App Struct
-///
-/// Has a batch
 pub struct App {
     pub batch: Batch,
 }
 
-/// ### Batch Implementation
 impl App {
-    /// Initializer method
-    ///
-    /// Creates an icon seen on windows
     pub fn init(title: &str, event_loop: &EventLoop<()>) -> Self {
         let mut icon: Vec<u8> = vec![];
         let mut counter = 0;
@@ -247,10 +208,7 @@ impl App {
         return App { batch }
     }
 
-    /// Alternate Initializer method
-    ///
-    /// Does not take an event loop but returns one back to user
-    /// **Recomended**
+    // Recommended
     pub fn init_with_loop(title: &str) -> (Self, EventLoop<()>) {
         let mut icon: Vec<u8> = vec![];
         let mut counter = 0;
@@ -306,6 +264,10 @@ impl App {
     pub fn circle(&mut self, position: [f32; 2], radius: f32, color: (f32,f32,f32)) {
         self.batch.add_quad([position[0] - radius / 2.0, position[1] + radius / 2.0 ], radius, radius, color, 1)
     }
+    
+    pub fn square(&mut self, position: [f32; 2], size: f32, color: (f32,f32,f32)) {
+        self.batch.add_quad(position, size, size, color, 0)
+    }
 
     pub fn save_frame(&mut self, color: (f32,f32,f32), events: &Vec<Event<()>>) {
         for event in events.iter() {
@@ -334,17 +296,17 @@ pub fn new_event_loop() -> EventLoop<()> {
     glium::glutin::event_loop::EventLoop::new()
 }
 
-pub fn n_is_pressed(events: &Vec<Event<()>>) -> Option<glium::glutin::event::VirtualKeyCode> {
+pub fn key_pressed(events: &Vec<Event<()>>) -> String {
     for event in events.iter() {
         match event {
             glutin::event::Event::WindowEvent { event, .. } => match event {
                 glutin::event::WindowEvent::KeyboardInput { device_id: _, input, is_synthetic } => {
-                    if !is_synthetic && input.state == glium::glutin::event::ElementState::Pressed {return Some(input.virtual_keycode.unwrap())}
+                    if !is_synthetic && input.state == glium::glutin::event::ElementState::Pressed {return format!("{:?}", input.virtual_keycode.unwrap())}
                 },
                 _ => (),
             },
             _ => (),
         }
     };
-    None
+    String::new()
 }
