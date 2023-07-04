@@ -9,7 +9,6 @@ use glium::glutin::event_loop::EventLoop;
 use glium::glutin::event_loop::ControlFlow;
 use glium::glutin::event::Event;
 use glium::glutin::event::StartCause;
-pub mod keycode;
 
 enum Action {
     Stop,
@@ -81,6 +80,7 @@ struct Vertex {
 }
 glium::implement_vertex!(Vertex, position, color, style, tex_coord);
 
+
 use glium::{Display, index::{PrimitiveType, IndexBuffer}, vertex::VertexBuffer, Program, Frame, Surface};
 pub struct Batch {
     vertex_buffer: Vec<Vertex>,
@@ -118,15 +118,17 @@ impl Batch {
         self.index_buffer.push(index_buffer_size + 2);
 
         let color = [color.0, color.1, color.2];
-        self.vertex_buffer.push(Vertex { position, color, style, tex_coord: [0.0,1.0] });
-        self.vertex_buffer.push(Vertex { position: [position[0] + width, position[1]], color, style, tex_coord: [1.0,1.0] });
-        self.vertex_buffer.push(Vertex { position: [position[0] + width, position[1] - height], color, style, tex_coord: [1.0, 0.0] });
-        self.vertex_buffer.push(Vertex { position: [position[0], position[1] - height], color, style, tex_coord: [0.0,0.0] });
+        self.vertex_buffer.push(Vertex { position: [position[0]        , -position[1]         ], color, style, tex_coord: [0.0,1.0] });
+        self.vertex_buffer.push(Vertex { position: [position[0] + width, -position[1]         ], color, style, tex_coord: [1.0,1.0] });
+        self.vertex_buffer.push(Vertex { position: [position[0] + width, -position[1] - height], color, style, tex_coord: [1.0, 0.0] });
+        self.vertex_buffer.push(Vertex { position: [position[0]        , -position[1] - height], color, style, tex_coord: [0.0,0.0] });
     }
 
     // Pushing an n sided polygon to the batch
     // I'm not sure about the performance impact of this function 
     // texture coordinates do not work
+    //
+    // DO NOT USE : BROKEN
     pub fn add_polygon(&mut self, points: Vec<f64>, color: (f32, f32, f32)) {
         let index_buffer_initial_size = self.vertex_buffer.len();
         let shape_index_buffer = earcut(&points, &[], 2);
@@ -155,13 +157,37 @@ impl Batch {
                 [self.aspect_ratio / self.distortion, 0.0, 0.0, 0.0],
                 [0.0, 1.0 / self.distortion, 0.0, 0.0],
                 [0.0, 0.0, 1.0, 0.0],
-                [self.positional_offset[0], self.positional_offset[1], -1.0, 1.0f32],
+                [self.positional_offset[0] - 1.0,self.positional_offset[1] + 1.0, -1.0, 1.0f32],
             ]
         };
-        let index_buffer = IndexBuffer::new(&self.display, PrimitiveType::TrianglesList, &self.index_buffer).unwrap();
-        let vertex_buffer = VertexBuffer::new(&self.display, &self.vertex_buffer).unwrap();
-        
-        frame.draw(&vertex_buffer, &index_buffer, &self.program, &uniforms, &Batch::get_default_draw_params()).unwrap(); }
+
+        let mut index_buffer_buffer: Vec<u16> = Vec::new();
+        let mut vertex_buffer_buffer: Vec<Vertex> = Vec::new();
+        let mut quad_count = 0;
+        const QUADS_PER_DRAW: usize = 16380;
+
+        for i in 0 .. self.vertex_buffer.len() {
+            vertex_buffer_buffer.push(self.vertex_buffer[i]);
+            
+            if (i + 1) % 4 == 0 {
+                for j in 0 .. 6 {
+                    index_buffer_buffer.push(self.index_buffer[6 * quad_count + j]);
+                }
+                quad_count += 1;
+            }
+            if quad_count == QUADS_PER_DRAW || i == self.vertex_buffer.len() - 1 {
+                let index_buffer = IndexBuffer::new(&self.display, PrimitiveType::TrianglesList, &index_buffer_buffer).unwrap();
+                let vertex_buffer = VertexBuffer::new(&self.display, &vertex_buffer_buffer).unwrap();
+
+                index_buffer_buffer = Vec::new();
+                vertex_buffer_buffer = Vec::new();
+                
+                frame.draw(&vertex_buffer, &index_buffer, &self.program, &uniforms, &Batch::get_default_draw_params()).unwrap();
+
+                quad_count = 0;
+            }
+        }
+    }
 
     fn get_default_draw_params() -> DrawParameters<'static> {
         glium::DrawParameters {
@@ -227,8 +253,8 @@ impl App {
                     icon.push(150);
                 } 
                 
-                else {icon.push(60)}
-                counter += 1
+                else {icon.push(61)}
+                counter += 2
             }
         }
         let icon = glutin::window::Icon::from_rgba(icon, 16, 16).expect("BADICON");
@@ -267,6 +293,10 @@ impl App {
     
     pub fn square(&mut self, position: [f32; 2], size: f32, color: (f32,f32,f32)) {
         self.batch.add_quad(position, size, size, color, 0)
+    }
+
+    pub fn line(&mut self, p1: [f32; 2], p2: [f32; 2], width: f32, color: (f32,f32,f32)) {
+        todo!("{:?},{:?},{:?},{:?}", p1, p2, width, color)
     }
 
     pub fn save_frame(&mut self, color: (f32,f32,f32), events: &Vec<Event<()>>) {
@@ -309,4 +339,16 @@ pub fn key_pressed(events: &Vec<Event<()>>) -> String {
         }
     };
     String::new()
+}
+
+pub fn arrow_key_zoom(events: &Vec<Event<()>>, app: &mut App, zoom: &mut f32) {
+    if key_pressed(events) == "Up" {
+        *zoom -= *zoom / 2.0;
+        app.set_zoom(*zoom);
+    }
+
+    if key_pressed(events) == "Down" {
+        *zoom += *zoom;
+        app.set_zoom(*zoom);
+    }
 }
