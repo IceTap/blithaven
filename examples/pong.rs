@@ -1,7 +1,7 @@
 use blithaven;
 
 fn main() {
-    let (mut app, event_loop) = blithaven::App::init_with_loop("test");
+    let (mut app, event_loop) = blithaven::App::init_with_loop("test", 700, 700);
 
     let mut ball_x = 0.0;
     let mut ball_y = 0.0;

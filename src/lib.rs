@@ -2,6 +2,8 @@
 use earcutr::earcut;
 use glium::glutin;
 use glium::DrawParameters;
+use glium::glutin::dpi::LogicalSize;
+use glium::glutin::dpi::Size;
 use std::io::Read;
 use std::time::Duration;
 use std::time::Instant;
@@ -97,14 +99,14 @@ impl Batch {
         use std::fs::File;
 
         let mut vertex_shader = String::new();
-        let _ = File::open(r"./src/shaders/vertex.glsl").expect("Could not open vertex file").read_to_string(&mut vertex_shader);
+        let _ = File::open(r"./src/shaders/vertex.glsl").expect("Could not open vertex file: You are probably in the wrong directory, You must be in the main directory containing folders examples, src, and target").read_to_string(&mut vertex_shader);
 
         let mut fragment_shader = String::new();
         let _ = File::open(r"./src/shaders/fragment.glsl").expect("Could not open fragment file").read_to_string(&mut fragment_shader);
 
         let program = { Program::from_source(&display, &vertex_shader, &fragment_shader, None).unwrap() };
 
-        Self { vertex_buffer: vec![], index_buffer: vec![], program, display, aspect_ratio, distortion: 1.0, positional_offset: [0.0,0.0] }
+        Self { vertex_buffer: Vec::new(), index_buffer: Vec::new(), program, display, aspect_ratio, distortion: 1.0, positional_offset: [0.0,0.0] }
     }
     
     fn add_quad(&mut self, position: [f32; 2], width: f32, height: f32, color: (f32, f32, f32), style: i32) {
@@ -200,15 +202,15 @@ impl Batch {
 }
 
 pub struct App {
-    pub batch: Batch,
+    batch: Batch,
 }
 
 impl App {
-    pub fn init(title: &str, event_loop: &EventLoop<()>) -> Self {
-        let mut icon: Vec<u8> = vec![];
+    pub fn init(title: &str, event_loop: &EventLoop<()>, width: i32, height: i32) -> Self {
+        let mut icon: Vec<u8> = Vec::new();
         let mut counter = 0;
 
-        for i in 0 .. 256 * 4 {
+        for i in 1 .. 256 * 4 {
             if counter == 3 {
                 icon.push(255);
                 counter = 0;
@@ -228,15 +230,15 @@ impl App {
         }
         let icon = glutin::window::Icon::from_rgba(icon, 16, 16).expect("BADICON");
 
-        let window = glutin::window::WindowBuilder::new().with_title(title).with_window_icon(Some(icon));
-        let context_buffer = glutin::ContextBuilder::new().with_depth_buffer(24);
+        let window = glutin::window::WindowBuilder::new().with_title(title).with_window_icon(Some(icon)).with_inner_size(Size::new(LogicalSize::new(width, height)));
+        let context_buffer = glutin::ContextBuilder::new().with_depth_buffer(25);
         let batch = Batch::new(glium::Display::new(window, context_buffer, &event_loop).unwrap(), 16.0 / 9.0);
         return App { batch }
     }
 
     // Recommended
-    pub fn init_with_loop(title: &str) -> (Self, EventLoop<()>) {
-        let mut icon: Vec<u8> = vec![];
+    pub fn init_with_loop(title: &str, width: i32, height: i32) -> (Self, EventLoop<()>) {
+        let mut icon: Vec<u8> = Vec::new();
         let mut counter = 0;
 
         for i in 0 .. 256 * 4 {
@@ -260,8 +262,8 @@ impl App {
         let icon = glutin::window::Icon::from_rgba(icon, 16, 16).expect("BADICON");
 
         let event_loop = new_event_loop();
-        let window = glutin::window::WindowBuilder::new().with_title(title).with_window_icon(Some(icon));
-        let context_buffer = glutin::ContextBuilder::new().with_depth_buffer(24);
+        let window = glutin::window::WindowBuilder::new().with_title(title).with_window_icon(Some(icon)).with_inner_size(Size::new(LogicalSize::new(width, height)));
+        let context_buffer = glutin::ContextBuilder::new().with_depth_buffer(25);
         let batch = Batch::new(glium::Display::new(window, context_buffer, &event_loop).unwrap(), 16.0 / 9.0);
         return ( App { batch }, event_loop )
     }
@@ -315,8 +317,8 @@ impl App {
         let mut frame = self.batch.display.draw();
         frame.clear_color_and_depth((color.0, color.1, color.2, 1.0), 1.0);
         self.batch.draw(&mut frame);
-        self.batch.vertex_buffer = vec![];
-        self.batch.index_buffer = vec![];
+        self.batch.vertex_buffer = Vec::new();
+        self.batch.index_buffer = Vec::new();
         frame.finish().unwrap();
     }
 }

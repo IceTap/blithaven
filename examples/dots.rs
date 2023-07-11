@@ -2,7 +2,7 @@ use blithaven;
 
 fn main() {
 
-    let (mut app, event_loop) = blithaven::App::init_with_loop("dots");
+    let (mut app, event_loop) = blithaven::App::init_with_loop("dots", 700, 700);
 
     let mut zoom = 1.0;
     let mut camera_position = [0.0,0.0];
