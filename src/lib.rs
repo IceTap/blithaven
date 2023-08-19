@@ -144,7 +144,7 @@ impl App {
 
     pub fn line(&mut self, p1: [i32; 2], p2: [i32; 2], width: i32, color: (f32, f32, f32)) {
         self.batch.add_quad(
-            p1, p2[0] - p1[0], p2[1] - p1[1], color, 2, true, width as f32 / 1000.0)
+            p1, p2[0] - p1[0], p2[1] - p1[1], color, 2, self.options.use_pixel_space, width as f32 / 1000.0)
 
     }
 
@@ -177,7 +177,7 @@ impl App {
     pub fn texture_quad(&mut self, position: [i32; 2], width: i32, height: i32, texture_path: &str) {
         for texture_batch in self.texture_batches.iter_mut() {
             if texture_path == texture_batch.path {
-                texture_batch.add_quad(position, width, height, (1.0,1.0,1.0), 0, true, 0.0);
+                texture_batch.add_quad(position, width, height, (1.0,1.0,1.0), 0, self.options.use_pixel_space, 0.0);
                 return
             }
         }
