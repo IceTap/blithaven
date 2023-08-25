@@ -34,7 +34,7 @@ pub fn start<F>(event_loop: EventLoop<()>, mut input_code: F)->! where F: 'stati
 
         let action = if run_callback {
             input_code(&events_buffer);
-            next_frame_time = Instant::now();
+            next_frame_time = Instant::now() + Duration::from_nanos(1666667);
             // TODO: Add back the old accumulator loop in some way
             for event in events_buffer.iter() {
                 match event {
@@ -219,11 +219,75 @@ pub struct Batch {
 
 impl Batch {
     fn new(display: &Display, window_width: i32, window_height: i32) -> Self {
-        let mut vertex_shader = String::new();
-        File::open(r"./src/shaders/color_shaders/vertex.glsl").expect("Could not open vertex file: You are probably in the wrong directory, You must be in the main directory containing folders examples, src, and target").read_to_string(&mut vertex_shader).unwrap();
+        let fragment_shader = String::from("
+            #version 140
 
-        let mut fragment_shader = String::new();
-        File::open(r"./src/shaders/color_shaders/fragment.glsl").expect("Could not open fragment file").read_to_string(&mut fragment_shader).unwrap();
+            in vec4 v_color;
+            in float v_style;
+            in vec2 v_tex_coord;
+            in float v_variator;
+
+            out vec4 f_color;
+
+            void main() {
+              if (v_style == 1) {
+                vec2 uv = v_tex_coord;
+                
+                float t = distance(uv, vec2(0.5));
+                
+                if (t <= 0.5) {
+                  f_color = v_color;
+                }
+                else {
+                  f_color = vec4(uv,1.0,0.0);
+                }
+              }
+              else if (v_style == 2) {
+                vec2 uv = v_tex_coord;
+                
+                if (uv.x + uv.y > 1 - v_variator) {
+                  if (uv.x + uv.y < 1 + v_variator) {
+                    f_color = v_color;
+                  }
+                  else {
+                    f_color = vec4(uv,1.0,0.0);
+                  }
+                }
+                
+                else {
+                  f_color = vec4(uv,1.0,0.0);
+                }
+              }
+              else {
+                f_color = v_color;
+              }
+            }
+        ");
+
+        let vertex_shader = String::from("
+            #version 140
+
+            in vec2 position;
+            in vec4 color;
+            in int style;
+            in vec2 tex_coord;
+            in float variator;
+
+            out vec4 v_color;
+            out float v_style;
+            out vec2 v_tex_coord;
+            out float v_variator;
+
+            uniform mat4 matrix;
+
+            void main() {
+                v_color = color;
+                v_style = style;
+                v_tex_coord = tex_coord;
+                v_variator = variator;
+                gl_Position = matrix * vec4(position, 0.0, 1.0);
+            }
+        ");
 
         let program = { Program::from_source(display, &vertex_shader, &fragment_shader, None).unwrap() };
 
@@ -365,11 +429,33 @@ pub struct TextureBatch {
 
 impl TextureBatch {
     fn new(display: &Display, window_width: i32, window_height: i32, path: String) -> Self {
-        let mut vertex_shader = String::new();
-        File::open(r"./src/shaders/texture_shaders/vertex.glsl").expect("Could not open vertex file: You are probably in the wrong directory, You must be in the main directory containing folders examples, src, and target").read_to_string(&mut vertex_shader).unwrap();
+        let vertex_shader = String::from("
+            #version 140
 
-        let mut fragment_shader = String::new();
-        File::open(r"./src/shaders/texture_shaders/fragment.glsl").expect("Could not open fragment file").read_to_string(&mut fragment_shader).unwrap();
+            in vec2 position;
+            in vec2 tex_coord;
+            out vec2 v_tex_coord;
+
+            uniform mat4 matrix;
+
+            void main() {
+                v_tex_coord = tex_coord;
+                gl_Position = matrix * vec4(position, 0.0, 1.0);
+            }
+        ");
+
+        let fragment_shader = String::from("       
+            #version 140
+
+            in vec2 v_tex_coord;
+            out vec4 color;
+
+            uniform sampler2D tex;
+
+            void main() {
+                color = texture(tex, v_tex_coord);
+            }
+        ");
 
         let program = Program::from_source(display, &vertex_shader, &fragment_shader, None).unwrap();
 
