@@ -1,7 +1,5 @@
 use std::{time::{Instant, Duration}, fs::File, io::Read};
-
-use glium::{glutin::{event_loop::{EventLoop, ControlFlow}, event::{Event, StartCause}, window::WindowBuilder, dpi::{Size, LogicalSize}, ContextBuilder}, implement_vertex, Display, IndexBuffer, VertexBuffer, index::PrimitiveType, Program, Surface, DrawParameters, Frame};
-use glium::glutin;
+use glium::{glutin, {glutin::{event_loop::{EventLoop, ControlFlow}, event::{Event, StartCause}, window::WindowBuilder, dpi::{Size, LogicalSize}, ContextBuilder}, implement_vertex, Display, IndexBuffer, VertexBuffer, index::PrimitiveType, Program, Surface, DrawParameters, Frame}};
 
 enum Action {
     Continue
@@ -65,9 +63,9 @@ pub fn start<F>(event_loop: EventLoop<()>, mut input_code: F)->! where F: 'stati
 
 
 pub struct App {
-    pub options: Options,
+    options: Options,
     display: Display,
-    pub batch: Batch,
+    batch: Batch,
     texture_batches: Vec<TextureBatch>,
     last_frame_time: Instant,
     last_fps_output: Instant,
@@ -84,6 +82,11 @@ impl App {
 
         ( App { display, batch, options: Options::new(window_width as i32, window_height as i32), texture_batches: Vec::new(), last_frame_time: Instant::now(), last_fps_output: Instant::now() }, event_loop)
     }
+
+    pub fn use_pixel_coords(&mut self, param: bool) {
+        self.options.use_pixel_space = param;
+    }
+
 
     pub fn finish(&mut self, clear_color: [f32; 3], events: &Vec<Event<()>>) {
         for event in events.iter() {

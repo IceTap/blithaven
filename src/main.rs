@@ -83,9 +83,11 @@ impl Ball {
         if self.pos.positional_dist(&other.pos) < self.radius + other.radius {
             self.color = (1.0,0.0,0.0);
 
-            let direction_from_other_node: Vector = other.vel.new_sub(&self.vel);
+            let mut direction_from_other_node: Vector = other.vel.new_sub(&self.vel);
 
             self.vel.add(&direction_from_other_node);
+            direction_from_other_node.set_mag((self.radius + other.radius) - self.pos.positional_dist(&other.pos));
+            self.pos.add(&direction_from_other_node);
             self.pos.add(&self.vel);
 
             Vector::ceil(&mut self.vel, 0.2);
