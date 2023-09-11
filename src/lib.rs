@@ -1,5 +1,6 @@
 use std::{time::{Instant, Duration}, fs::File, io::Read};
-use glium::{glutin, {glutin::{event_loop::{EventLoop, ControlFlow}, event::{Event, StartCause}, window::WindowBuilder, dpi::{Size, LogicalSize}, ContextBuilder}, implement_vertex, Display, IndexBuffer, VertexBuffer, index::PrimitiveType, Program, Surface, DrawParameters, Frame}};
+use glium::{glutin, {glutin::{event_loop::ControlFlow, event::{Event, StartCause}, window::WindowBuilder, dpi::{Size, LogicalSize}, ContextBuilder}, implement_vertex, Display, IndexBuffer, VertexBuffer, index::PrimitiveType, Program, Surface, DrawParameters, Frame}};
+pub use glium::glutin::event_loop::EventLoop;
 
 enum Action {
     Continue
