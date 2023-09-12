@@ -1,5 +1,5 @@
 use std::{time::{Instant, Duration}, fs::File, io::Read};
-use glium::{glutin, {glutin::{event_loop::ControlFlow, event::{Event, StartCause}, window::WindowBuilder, dpi::{Size, LogicalSize}, ContextBuilder}, implement_vertex, Display, IndexBuffer, VertexBuffer, index::PrimitiveType, Program, Surface, DrawParameters, Frame}};
+use glium::{glutin::{self, event}, {glutin::{event_loop::ControlFlow, event::{Event, StartCause}, window::WindowBuilder, dpi::{Size, LogicalSize}, ContextBuilder}, implement_vertex, Display, IndexBuffer, VertexBuffer, index::PrimitiveType, Program, Surface, DrawParameters, Frame}};
 pub use glium::glutin::event_loop::EventLoop;
 
 enum Action {
@@ -8,7 +8,7 @@ enum Action {
 
 struct MakeLightBulbGoAway;
 
-pub fn start<F>(event_loop: EventLoop<()>, mut input_code: F)->! where F: 'static + FnMut(&Vec<Event<'_, ()>>) {
+pub fn start_loop<F>(event_loop: EventLoop<()>, mut input_code: F)->! where F: 'static + FnMut(&Vec<Event<'_, ()>>) {
     let mut events_buffer = Vec::new();
     let mut next_frame_time = Instant::now();
     event_loop.run(move |event, _, control_flow| {
@@ -82,6 +82,15 @@ impl App {
         let batch = Batch::new(&display, window_width as i32, window_height as i32);
 
         ( App { display, batch, options: Options::new(window_width as i32, window_height as i32), texture_batches: Vec::new(), last_frame_time: Instant::now(), last_fps_output: Instant::now() }, event_loop)
+    }
+    pub fn new_with_loop(title: &str, window_width: u32, window_height: u32, event_loop: EventLoop<()>) -> Self {
+        let window_builder = WindowBuilder::new().with_title(title).with_inner_size(Size::from(LogicalSize::new(window_width, window_height))).with_resizable(false);
+        let context_buffer = ContextBuilder::new().with_depth_buffer(25);
+
+        let display = Display::new(window_builder, context_buffer, &event_loop).unwrap();
+        let batch = Batch::new(&display, window_width as i32, window_height as i32);
+
+        App { display, batch, options: Options::new(window_width as i32, window_height as i32), texture_batches: Vec::new(), last_frame_time: Instant::now(), last_fps_output: Instant::now() }
     }
 
     pub fn use_pixel_coords(&mut self, param: bool) {
@@ -627,4 +636,50 @@ impl Options {
             window_height
         }
     }
+}
+
+static mut CONTEXT: Option<App> = None;
+
+pub fn initialize() -> EventLoop<()> {
+    unsafe {
+        let (app, event_loop) = App::new("title", 400, 400);
+        CONTEXT = Some ( app );
+        return event_loop
+    };
+}
+
+fn get_app() -> &'static mut App {
+    if unsafe { CONTEXT.is_none() } { panic!() }
+    return unsafe { CONTEXT.as_mut().unwrap() }
+}
+
+pub fn circle(position: [f32; 2], radius: f32, color: (f32,f32,f32)) {
+    let app = get_app();
+    app.circle([position[0] as i32, position[1] as i32], radius as i32, color)
+}
+
+pub fn next_frame_await(events: &Vec<Event<'_, ()>>) {
+    let app = get_app();
+
+    app.finish([0.1,0.1,0.1], events)
+}
+
+pub fn run<F>(mut loop_function: F) ->! where F: 'static + FnMut() {
+    let (app, event_loop) = App::new("title", 400, 400);
+    unsafe { CONTEXT = Some ( app ) }
+    let app = get_app();
+    start_loop(event_loop, move | events | {
+        loop_function();
+
+        app.finish([0.1,0.1,0.1], events)
+    });
+}
+
+pub fn start<F>(event_loop: EventLoop<()>, mut loop_function: F) ->! where F: 'static + FnMut() {
+    let app = get_app();
+    start_loop(event_loop, move | events | {
+        loop_function();
+
+        app.finish([0.1,0.1,0.1], events)
+    });
 }
