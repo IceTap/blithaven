@@ -657,12 +657,15 @@ pub fn circle(position: [f32; 2], radius: f32, color: (f32,f32,f32)) {
     let app = get_app();
     app.circle([position[0] as i32, position[1] as i32], radius as i32, color)
 }
-
-pub fn next_frame_await(events: &Vec<Event<'_, ()>>) {
+pub fn square(position: [f32; 2], size: f32, color: (f32,f32,f32)) {
     let app = get_app();
-
-    app.finish([0.1,0.1,0.1], events)
+    app.square([position[0] as i32, position[1] as i32], size as i32, color)
 }
+pub fn rect(position: [f32; 2], width: f32, height: f32, color: (f32,f32,f32)) {
+    let app = get_app();
+    app.rect([position[0] as i32, position[1] as i32], width as i32, height as i32, color)
+}
+
 
 pub fn run<F>(mut loop_function: F) ->! where F: 'static + FnMut() {
     let (app, event_loop) = App::new("title", 400, 400);
@@ -683,3 +686,65 @@ pub fn start<F>(event_loop: EventLoop<()>, mut loop_function: F) ->! where F: 's
         app.finish([0.1,0.1,0.1], events)
     });
 }
+
+
+// pub fn next_frame_await() {
+//     let mut events_buffer = Vec::new();
+//     let mut next_frame_time = Instant::now();
+//     let app = get_app();
+
+//     let runmy = move |event: Event<'_, ()>, control_flow: &mut ControlFlow| {
+//         let run_callback = match event.to_static() {
+//             Some(Event::NewEvents(cause)) => {
+//                 match cause {
+//                     StartCause::ResumeTimeReached { .. } | StartCause::Init => {
+//                         true
+//                     },
+//                     _ => false
+//                 }
+//             },
+//             Some(event) => {
+//                 events_buffer.push(event);
+//                 false
+//             }
+//             None => {
+//                 // Ignore this event.
+//                 false
+//             },
+//         };
+
+//         let action = if run_callback {
+//             app.finish([0.1,0.1,0.1], &events_buffer);
+//             next_frame_time = Instant::now() + Duration::from_nanos(1666667);
+//             // TODO: Add back the old accumulator loop in some way
+//             for event in events_buffer.iter() {
+//                 match event {
+//                     glutin::event::Event::WindowEvent { event, .. } => match event {
+//                         glutin::event::WindowEvent::CloseRequested => {
+//                             *control_flow = glutin::event_loop::ControlFlow::Exit;
+//                             return
+//                         },
+//                         _ => (),
+//                     },
+//                     _ => (),
+//                 }
+//             };
+
+//             events_buffer.clear();
+//             Action::Continue
+//         } else {
+//             Action::Continue
+//         };
+
+//         match action {
+//             Action::Continue => {
+//                 *control_flow = ControlFlow::WaitUntil(next_frame_time);
+//             }
+//         };
+//     };
+//     tick(run);
+// }
+
+// fn tick<F>(func: F) where F: 'static + FnMut(Event<'_, T>, &glutin::event_loop::EventLoopWindowTarget<T>, &mut ControlFlow) {
+//     ()
+// }

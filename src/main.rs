@@ -1,12 +1,11 @@
 use blithaven::*;
 
 fn main() {
-    let (mut app, event_loop) = App::new("t", 300, 500);
 
-    blithaven::start_loop(event_loop, move | events | {
-        app.finish([0.1,0.1,0.1], events)
-    });
-    run(func);
+    initialize();
+    loop {
+        println!("CHLICS");
+    }
 }
 
 
