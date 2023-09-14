@@ -33,7 +33,7 @@ pub fn start_loop<F>(event_loop: EventLoop<()>, mut input_code: F)->! where F: '
 
         let action = if run_callback {
             input_code(&events_buffer);
-            next_frame_time = Instant::now() + Duration::from_nanos(1666667);
+            next_frame_time = Instant::now() + Duration::from_nanos(1667);
             // TODO: Add back the old accumulator loop in some way
             for event in events_buffer.iter() {
                 match event {

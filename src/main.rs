@@ -1,11 +1,10 @@
 use blithaven::*;
 
 fn main() {
-
-    initialize();
-    loop {
-        println!("CHLICS");
-    }
+    
+    run(move || {
+        println!("H")
+    })
 }
 
 
