@@ -473,6 +473,7 @@ impl TextureBatch {
             }
         ");
 
+        println!("The Problem?");
         let program = Program::from_source(display, &vertex_shader, &fragment_shader, None).unwrap();
         
         println!("Right before the problem");
