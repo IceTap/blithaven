@@ -665,6 +665,10 @@ pub fn rect(position: [f32; 2], width: f32, height: f32, color: (f32,f32,f32)) {
     let app = get_app();
     app.rect([position[0] as i32, position[1] as i32], width as i32, height as i32, color)
 }
+pub fn blit(position: [f32; 2], width: f32, height: f32, texture_path: &str) {
+    let app = get_app();
+    app.texture_quad([position[0] as i32, position[1] as i32], width as i32, height as i32, texture_path)
+}
 
 
 pub fn run<F>(mut loop_function: F) ->! where F: 'static + FnMut() {
