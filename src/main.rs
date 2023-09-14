@@ -3,7 +3,7 @@ use blithaven::*;
 fn main() {
     
     run(move || {
-        println!("H")
+        func()
     })
 }
 
@@ -15,4 +15,5 @@ fn func() {
 
 fn other_func() {
     circle([300.0,120.0], 13.5, (0.4,0.6,0.1));
+    texture([100.0,100.0], 30.0, 30.0, "./src/assets/Sldime_32x32.png")
 }
