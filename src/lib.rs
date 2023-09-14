@@ -476,7 +476,9 @@ impl TextureBatch {
         let f = File::open(&path).unwrap();
         let mut reader = std::io::BufReader::new(f);
         let mut buffer = Vec::new();
+        println!("Right before the problem");
         reader.read_to_end(&mut buffer).unwrap();
+        println!("Right before the problem");
 
         let raw_texture: image::ImageBuffer<image::Rgba<u8>, Vec<u8>> = image::load(std::io::Cursor::new(&buffer),
                         image::ImageFormat::Png).unwrap().to_rgba8();
