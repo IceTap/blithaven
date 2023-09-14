@@ -443,6 +443,8 @@ pub struct TextureBatch {
 
 impl TextureBatch {
     fn new(display: &Display, window_width: i32, window_height: i32, path: String) -> Self {
+        println!("New function beginning");
+
         let vertex_shader = String::from("
             #version 140
 
@@ -478,7 +480,7 @@ impl TextureBatch {
         let mut buffer = Vec::new();
         println!("Right before the problem");
         reader.read_to_end(&mut buffer).unwrap();
-        println!("Right before the problem");
+        println!("Right after the problem");
 
         let raw_texture: image::ImageBuffer<image::Rgba<u8>, Vec<u8>> = image::load(std::io::Cursor::new(&buffer),
                         image::ImageFormat::Png).unwrap().to_rgba8();
