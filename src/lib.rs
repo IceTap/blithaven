@@ -188,6 +188,7 @@ impl App {
     }
 
     pub fn texture_quad(&mut self, position: [i32; 2], width: i32, height: i32, texture_path: &str) {
+        println!("Base function in app");
         for texture_batch in self.texture_batches.iter_mut() {
             if texture_path == texture_batch.path {
                 texture_batch.add_quad(position, width, height, (1.0,1.0,1.0), 0, self.options.use_pixel_space, 0.0);
@@ -666,6 +667,7 @@ pub fn rect(position: [f32; 2], width: f32, height: f32, color: (f32,f32,f32)) {
     app.rect([position[0] as i32, position[1] as i32], width as i32, height as i32, color)
 }
 pub fn texture(position: [f32; 2], width: f32, height: f32, texture_path: &str) {
+    println!("Base function not in app");
     let app = get_app();
     app.texture_quad([position[0] as i32, position[1] as i32], width as i32, height as i32, texture_path)
 }
