@@ -1,6 +1,9 @@
 use std::{time::{Instant, Duration}, fs::File, io::Read};
-use glium::{glutin::{self, event}, {glutin::{event_loop::ControlFlow, event::{Event, StartCause}, window::WindowBuilder, dpi::{Size, LogicalSize}, ContextBuilder}, implement_vertex, Display, IndexBuffer, VertexBuffer, index::PrimitiveType, Program, Surface, DrawParameters, Frame}};
 pub use glium::glutin::event_loop::EventLoop;
+pub use glium::glutin::event::VirtualKeyCode;
+use glium::{*, glutin::ContextBuilder};
+use glutin::event::*;
+use glutin::window::*;
 
 enum Action {
     Continue
@@ -56,7 +59,7 @@ pub fn start_loop<F>(event_loop: EventLoop<()>, mut input_code: F)->! where F: '
 
         match action {
             Action::Continue => {
-                *control_flow = ControlFlow::WaitUntil(next_frame_time);
+                *control_flow = glutin::event_loop::ControlFlow::WaitUntil(next_frame_time);
             }
         };
     })
@@ -75,7 +78,7 @@ pub struct App {
 impl App {
     pub fn new(title: &str, window_width: u32, window_height: u32) -> (Self, EventLoop<()>) {
         let event_loop = EventLoop::new();
-        let window_builder = WindowBuilder::new().with_title(title).with_inner_size(Size::from(LogicalSize::new(window_width, window_height))).with_resizable(false);
+        let window_builder = WindowBuilder::new().with_title(title).with_inner_size(glutin::dpi::Size::from(glutin::dpi::LogicalSize::new(window_width, window_height))).with_resizable(false);
         let context_buffer = ContextBuilder::new().with_depth_buffer(25);
 
         let display = Display::new(window_builder, context_buffer, &event_loop).unwrap();
@@ -84,7 +87,7 @@ impl App {
         ( App { display, batch, options: Options::new(window_width as i32, window_height as i32), texture_batches: Vec::new(), last_frame_time: Instant::now(), last_fps_output: Instant::now() }, event_loop)
     }
     pub fn new_with_loop(title: &str, window_width: u32, window_height: u32, event_loop: EventLoop<()>) -> Self {
-        let window_builder = WindowBuilder::new().with_title(title).with_inner_size(Size::from(LogicalSize::new(window_width, window_height))).with_resizable(false);
+        let window_builder = WindowBuilder::new().with_title(title).with_inner_size(glutin::dpi::Size::from(glutin::dpi::LogicalSize::new(window_width, window_height))).with_resizable(false);
         let context_buffer = ContextBuilder::new().with_depth_buffer(25);
 
         let display = Display::new(window_builder, context_buffer, &event_loop).unwrap();
@@ -188,7 +191,6 @@ impl App {
     }
 
     pub fn texture_quad(&mut self, position: [i32; 2], width: i32, height: i32, texture_path: &str) {
-        println!("Base function in app");
         for texture_batch in self.texture_batches.iter_mut() {
             if texture_path == texture_batch.path {
                 texture_batch.add_quad(position, width, height, (1.0,1.0,1.0), 0, self.options.use_pixel_space, 0.0);
@@ -349,7 +351,7 @@ impl Batch {
                 quad_count += 1;
             }
             if quad_count == QUADS_PER_DRAW || i == self.vertex_buffer.len() - 1 {
-                let index_buffer = IndexBuffer::new(display, PrimitiveType::TrianglesList, &index_buffer_buffer).unwrap();
+                let index_buffer = IndexBuffer::new(display, index::PrimitiveType::TrianglesList, &index_buffer_buffer).unwrap();
                 let vertex_buffer = VertexBuffer::new(display, &vertex_buffer_buffer).unwrap();
 
                 index_buffer_buffer = Vec::new();
@@ -443,7 +445,6 @@ pub struct TextureBatch {
 
 impl TextureBatch {
     fn new(display: &Display, window_width: i32, window_height: i32, path: String) -> Self {
-        println!("New function beginning");
 
         let vertex_shader = String::from("
             #version 140
@@ -473,12 +474,9 @@ impl TextureBatch {
             }
         ");
 
-        println!("The Problem?");
         let program = Program::from_source(display, &vertex_shader, &fragment_shader, None).unwrap();
         
-        println!("Right before the problem");
         let f = File::open(&path).unwrap();
-        println!("Right after the problem");
 
         let mut reader = std::io::BufReader::new(f);
         let mut buffer = Vec::new();
@@ -531,7 +529,7 @@ impl TextureBatch {
                 quad_count += 1;
             }
             if quad_count == QUADS_PER_DRAW || i == self.vertex_buffer.len() - 1 {
-                let index_buffer = IndexBuffer::new(display, PrimitiveType::TrianglesList, &index_buffer_buffer).unwrap();
+                let index_buffer = IndexBuffer::new(display, index::PrimitiveType::TrianglesList, &index_buffer_buffer).unwrap();
                 let vertex_buffer = VertexBuffer::new(display, &vertex_buffer_buffer).unwrap();
 
                 index_buffer_buffer = Vec::new();
@@ -655,7 +653,7 @@ pub fn initialize(title: &str, width: u32, height: u32) -> EventLoop<()> {
     };
 }
 
-fn get_app() -> &'static mut App {
+pub fn get_app() -> &'static mut App {
     if unsafe { CONTEXT.is_none() } { panic!() }
     return unsafe { CONTEXT.as_mut().unwrap() }
 }
@@ -673,22 +671,31 @@ pub fn rect(position: [f32; 2], width: f32, height: f32, color: (f32,f32,f32)) {
     app.rect([position[0] as i32, position[1] as i32], width as i32, height as i32, color)
 }
 pub fn texture(position: [f32; 2], width: f32, height: f32, texture_path: &str) {
-    println!("Base function not in app");
     let app = get_app();
     app.texture_quad([position[0] as i32, position[1] as i32], width as i32, height as i32, texture_path)
 }
 
 
 pub fn run<F>(title: &str, window_width: u32, window_height: u32, mut loop_function: F) ->! where F: 'static + FnMut() {
-    let (app, event_loop) = App::new(title, window_width, window_height);
-    unsafe { CONTEXT = Some ( app ) }
+    let ev_loop = initialize(title, window_width, window_height);
     let app = get_app();
-    start_loop(event_loop, move | events | {
+    start_loop(ev_loop, move | events | {
         loop_function();
 
         app.finish([0.1,0.1,0.1], events)
     });
 }
+
+pub fn start_loop_and_init<F>(title: &str, width: u32, height: u32, mut input_code: F)->! where F: 'static + FnMut(&Vec<Event<'_, ()>>) {
+    let ev_loop = initialize(title, width, height);
+    let app = get_app();
+    start_loop(ev_loop, move | events | {
+        input_code(events);
+
+        app.finish([0.1,0.1,0.1], events)
+    });
+}
+
 
 pub fn start<F>(event_loop: EventLoop<()>, mut loop_function: F) ->! where F: 'static + FnMut() {
     let app = get_app();
@@ -697,6 +704,23 @@ pub fn start<F>(event_loop: EventLoop<()>, mut loop_function: F) ->! where F: 's
 
         app.finish([0.1,0.1,0.1], events)
     });
+}
+
+pub fn key_pressed(key: VirtualKeyCode, events: &Vec<Event<'_, ()>>) -> bool {
+    for event in events.iter() {
+        match event {
+            Event::WindowEvent { event, ..} => match event {
+                glutin::event::WindowEvent::KeyboardInput { input, .. } => {
+                    if input.virtual_keycode.is_some() {
+                        return input.virtual_keycode.unwrap() == key
+                    }
+                },
+                _ => ()
+            },
+            _ => ()
+        }
+    }
+    false
 }
 
 

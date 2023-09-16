@@ -1,7 +1,12 @@
 use blithaven::*;
 
 fn main() {
-        run("title", 400,400, func);
+    start_loop_and_init("super awesome window", 500, 300, move | events | {
+        func();
+        if key_pressed(VirtualKeyCode::A, events) {
+            println!("A")
+        }
+    })
 }
 
 
