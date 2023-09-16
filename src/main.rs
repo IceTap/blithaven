@@ -1,7 +1,7 @@
 use blithaven::*;
 
 fn main() {
-        run(func, "title", 400,400);
+        run("title", 400,400, func);
 }
 
 

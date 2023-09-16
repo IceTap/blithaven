@@ -679,7 +679,7 @@ pub fn texture(position: [f32; 2], width: f32, height: f32, texture_path: &str) 
 }
 
 
-pub fn run<F>(mut loop_function: F, title: &str, window_width: u32, window_height: u32) ->! where F: 'static + FnMut() {
+pub fn run<F>(title: &str, window_width: u32, window_height: u32, mut loop_function: F) ->! where F: 'static + FnMut() {
     let (app, event_loop) = App::new(title, window_width, window_height);
     unsafe { CONTEXT = Some ( app ) }
     let app = get_app();
