@@ -647,9 +647,9 @@ impl Options {
 
 static mut CONTEXT: Option<App> = None;
 
-pub fn initialize() -> EventLoop<()> {
+pub fn initialize(title: &str, width: u32, height: u32) -> EventLoop<()> {
     unsafe {
-        let (app, event_loop) = App::new("title", 400, 400);
+        let (app, event_loop) = App::new(title, width, height);
         CONTEXT = Some ( app );
         return event_loop
     };
@@ -679,8 +679,8 @@ pub fn texture(position: [f32; 2], width: f32, height: f32, texture_path: &str) 
 }
 
 
-pub fn run<F>(mut loop_function: F) ->! where F: 'static + FnMut() {
-    let (app, event_loop) = App::new("title", 400, 400);
+pub fn run<F>(mut loop_function: F, title: &str, window_width: u32, window_height: u32) ->! where F: 'static + FnMut() {
+    let (app, event_loop) = App::new(title, window_width, window_height);
     unsafe { CONTEXT = Some ( app ) }
     let app = get_app();
     start_loop(event_loop, move | events | {
@@ -704,8 +704,8 @@ pub fn start<F>(event_loop: EventLoop<()>, mut loop_function: F) ->! where F: 's
 //     let mut events_buffer = Vec::new();
 //     let mut next_frame_time = Instant::now();
 //     let app = get_app();
-
-//     let runmy = move |event: Event<'_, ()>, control_flow: &mut ControlFlow| {
+    
+//     tick(move |event, _, control_flow| {
 //         let run_callback = match event.to_static() {
 //             Some(Event::NewEvents(cause)) => {
 //                 match cause {
@@ -753,10 +753,9 @@ pub fn start<F>(event_loop: EventLoop<()>, mut loop_function: F) ->! where F: 's
 //                 *control_flow = ControlFlow::WaitUntil(next_frame_time);
 //             }
 //         };
-//     };
-//     tick(run);
+//     });
 // }
 
-// fn tick<F>(func: F) where F: 'static + FnMut(Event<'_, T>, &glutin::event_loop::EventLoopWindowTarget<T>, &mut ControlFlow) {
+// fn tick<F>(func: F) where F: 'static + FnMut(Event<'_, ()>, &glutin::event_loop::EventLoopWindowTarget<()>, &mut ControlFlow) {
 //     ()
 // }
