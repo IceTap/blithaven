@@ -3,12 +3,13 @@ use blithaven::*;
 fn main() {
     start_loop_and_init("super awesome window", 500, 300, move | events | {
         func();
-        if key_pressed(VirtualKeyCode::A, events) {
-            println!("A")
+        // let keys = mouse_clicks(events);
+        // if keys.len() > 0 { println!("{:?}", keys) }
+        if mouse_clicked(MouseButton::Right, events) {
+            println!("CLicked")
         }
     })
 }
-
 
 fn func() {
     circle([0.0,0.0], 10.0, (1.0,1.0,1.0));

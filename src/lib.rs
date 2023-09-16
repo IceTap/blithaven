@@ -1,6 +1,7 @@
-use std::{time::{Instant, Duration}, fs::File, io::Read};
+use std::{time::{Instant, Duration}, fs::File, io::Read, ops::Index};
 pub use glium::glutin::event_loop::EventLoop;
 pub use glium::glutin::event::VirtualKeyCode;
+pub use glium::glutin::event::MouseButton;
 use glium::{*, glutin::ContextBuilder};
 use glutin::event::*;
 use glutin::window::*;
@@ -644,6 +645,9 @@ impl Options {
 }
 
 static mut CONTEXT: Option<App> = None;
+static mut PRESSED_KEYS: Vec<VirtualKeyCode> = Vec::new();
+static mut PRESSED_BUTTONS: Vec<MouseButton> = Vec::new();
+static mut CURSOR_POSITION: [f32; 2] = [0.0,0.0];
 
 pub fn initialize(title: &str, width: u32, height: u32) -> EventLoop<()> {
     unsafe {
@@ -713,6 +717,114 @@ pub fn key_pressed(key: VirtualKeyCode, events: &Vec<Event<'_, ()>>) -> bool {
                 glutin::event::WindowEvent::KeyboardInput { input, .. } => {
                     if input.virtual_keycode.is_some() {
                         return input.virtual_keycode.unwrap() == key
+                    }
+                },
+                _ => ()
+            },
+            _ => ()
+        }
+    }
+    false
+}
+
+pub fn keys_pressed(events: &Vec<Event<'_, ()>>) -> Vec<VirtualKeyCode> {
+    for event in events.iter() {
+        match event {
+            Event::WindowEvent { event, ..} => match event {
+                glutin::event::WindowEvent::KeyboardInput { input, .. } => {
+                    if input.virtual_keycode.is_some() {
+                        unsafe {
+                            if PRESSED_KEYS.contains(&input.virtual_keycode.unwrap()) {
+                                PRESSED_KEYS.remove(PRESSED_KEYS.iter().position(|r| r == &input.virtual_keycode.unwrap()).unwrap());
+                            }
+                            else {
+                                PRESSED_KEYS.push(input.virtual_keycode.unwrap());
+                            }
+                        }
+                    }
+                },
+                _ => ()
+            },
+            _ => ()
+        }
+    }
+    return unsafe { PRESSED_KEYS.clone() }
+}
+
+pub fn mouse_pos(events: &Vec<Event<'_, ()>>) -> [f32; 2] {
+    for event in events.iter() {
+        match event {
+            Event::WindowEvent { event, ..} => match event {
+                glutin::event::WindowEvent::CursorMoved { position, .. } => {
+                    unsafe { CURSOR_POSITION = [position.x as f32, position.y as f32]}
+                },
+                _ => ()
+            },
+            _ => ()
+        }
+    }
+    unsafe { CURSOR_POSITION.clone() }
+}
+
+pub fn mouse_clicks(events: &Vec<Event<'_, ()>>) -> Vec<MouseButton> {
+    for event in events.iter() {
+        match event {
+            Event::WindowEvent { event, ..} => match event {
+                glutin::event::WindowEvent::MouseInput { button, .. } => {
+                    unsafe {
+                        if PRESSED_BUTTONS.contains(button) {
+                            PRESSED_BUTTONS.remove(PRESSED_BUTTONS.iter().position(|r| r == button).unwrap());
+                        }
+                        else {
+                            PRESSED_BUTTONS.push(*button);
+                        }
+                    }
+                },
+                _ => ()
+            },
+            _ => ()
+        }
+    }
+    return unsafe { PRESSED_BUTTONS.clone() }
+}
+
+pub fn mouse_clicked(key: MouseButton, events: &Vec<Event<'_, ()>>) -> bool {
+    for event in events.iter() {
+        match event {
+            Event::WindowEvent { event, ..} => match event {
+                glutin::event::WindowEvent::MouseInput { button, .. } => {
+                    unsafe {
+                        if PRESSED_BUTTONS.contains(button) {
+                            PRESSED_BUTTONS.remove(PRESSED_BUTTONS.iter().position(|r| r == button).unwrap());
+                            return false
+                        }
+                        else {
+                            PRESSED_BUTTONS.push(*button);
+                            return button == &key
+                        }
+                    }
+                },
+                _ => ()
+            },
+            _ => ()
+        }
+    }
+    false
+}
+pub fn mouse_released(key: MouseButton, events: &Vec<Event<'_, ()>>) -> bool {
+    for event in events.iter() {
+        match event {
+            Event::WindowEvent { event, ..} => match event {
+                glutin::event::WindowEvent::MouseInput { button, .. } => {
+                    unsafe {
+                        if PRESSED_BUTTONS.contains(button) {
+                            PRESSED_BUTTONS.remove(PRESSED_BUTTONS.iter().position(|r| r == button).unwrap());
+                            return button == &key
+                        }
+                        else {
+                            PRESSED_BUTTONS.push(*button);
+                            return false
+                        }
                     }
                 },
                 _ => ()
