@@ -648,6 +648,7 @@ static mut CONTEXT: Option<App> = None;
 static mut PRESSED_KEYS: Vec<VirtualKeyCode> = Vec::new();
 static mut PRESSED_BUTTONS: Vec<MouseButton> = Vec::new();
 static mut CURSOR_POSITION: [f32; 2] = [0.0,0.0];
+static mut EVENTS: &Vec<Event<()>> = &Vec::new();
 
 pub fn initialize(title: &str, width: u32, height: u32) -> EventLoop<()> {
     unsafe {
@@ -696,6 +697,37 @@ pub fn start_loop_and_init<F>(title: &str, width: u32, height: u32, mut input_co
     start_loop(ev_loop, move | events | {
         input_code(events);
 
+        for event in events.iter() {
+            match event {
+                Event::WindowEvent { event, ..} => match event {
+                    glutin::event::WindowEvent::KeyboardInput { input, .. } => {
+                        if input.virtual_keycode.is_some() {
+                            unsafe {
+                                if PRESSED_KEYS.contains(&input.virtual_keycode.unwrap()) {
+                                    PRESSED_KEYS.remove(PRESSED_KEYS.iter().position(|r| r == &input.virtual_keycode.unwrap()).unwrap());
+                                }
+                                else {
+                                    PRESSED_KEYS.push(input.virtual_keycode.unwrap());
+                                }
+                            }
+                        }
+                    },
+                    glutin::event::WindowEvent::MouseInput {button, .. } => {
+                        unsafe {
+                            if PRESSED_BUTTONS.contains(button) {
+                                PRESSED_BUTTONS.remove(PRESSED_BUTTONS.iter().position(|r| r == button).unwrap());
+                            }
+                            else {
+                                PRESSED_BUTTONS.push(*button);
+                            }
+                        }
+                    }
+                    _ => ()
+                },
+                _ => ()
+            }
+        }
+
         app.finish([0.1,0.1,0.1], events)
     });
 }
@@ -706,133 +738,110 @@ pub fn start<F>(event_loop: EventLoop<()>, mut loop_function: F) ->! where F: 's
     start_loop(event_loop, move | events | {
         loop_function();
 
+        for event in events.iter() {
+            match event {
+                Event::WindowEvent { event, ..} => match event {
+                    glutin::event::WindowEvent::KeyboardInput { input, .. } => {
+                        if input.virtual_keycode.is_some() {
+                            unsafe {
+                                if PRESSED_KEYS.contains(&input.virtual_keycode.unwrap()) {
+                                    PRESSED_KEYS.remove(PRESSED_KEYS.iter().position(|r| r == &input.virtual_keycode.unwrap()).unwrap());
+                                }
+                                else {
+                                    PRESSED_KEYS.push(input.virtual_keycode.unwrap());
+                                }
+                            }
+                        }
+                    },
+                    glutin::event::WindowEvent::MouseInput {button, .. } => {
+                        unsafe {
+                            if PRESSED_BUTTONS.contains(button) {
+                                PRESSED_BUTTONS.remove(PRESSED_BUTTONS.iter().position(|r| r == button).unwrap());
+                            }
+                            else {
+                                PRESSED_BUTTONS.push(*button);
+                            }
+                        }
+                    }
+                    _ => ()
+                },
+                _ => ()
+            }
+        }
+
         app.finish([0.1,0.1,0.1], events)
     });
 }
 
-pub fn key_pressed(key: VirtualKeyCode, events: &Vec<Event<'_, ()>>) -> bool {
-    for event in events.iter() {
-        match event {
-            Event::WindowEvent { event, ..} => match event {
-                glutin::event::WindowEvent::KeyboardInput { input, .. } => {
-                    if input.virtual_keycode.is_some() {
-                        return input.virtual_keycode.unwrap() == key
-                    }
-                },
-                _ => ()
-            },
-            _ => ()
-        }
-    }
-    false
+pub fn key_pressed(key: VirtualKeyCode) -> bool {
+    return unsafe { PRESSED_KEYS.contains(&key) }
 }
 
-pub fn keys_pressed(events: &Vec<Event<'_, ()>>) -> Vec<VirtualKeyCode> {
-    for event in events.iter() {
-        match event {
-            Event::WindowEvent { event, ..} => match event {
-                glutin::event::WindowEvent::KeyboardInput { input, .. } => {
-                    if input.virtual_keycode.is_some() {
-                        unsafe {
-                            if PRESSED_KEYS.contains(&input.virtual_keycode.unwrap()) {
-                                PRESSED_KEYS.remove(PRESSED_KEYS.iter().position(|r| r == &input.virtual_keycode.unwrap()).unwrap());
-                            }
-                            else {
-                                PRESSED_KEYS.push(input.virtual_keycode.unwrap());
-                            }
-                        }
-                    }
-                },
-                _ => ()
-            },
-            _ => ()
-        }
-    }
+pub fn keys_pressed() -> Vec<VirtualKeyCode> {
     return unsafe { PRESSED_KEYS.clone() }
 }
 
-pub fn mouse_pos(events: &Vec<Event<'_, ()>>) -> [f32; 2] {
-    for event in events.iter() {
-        match event {
-            Event::WindowEvent { event, ..} => match event {
-                glutin::event::WindowEvent::CursorMoved { position, .. } => {
-                    unsafe { CURSOR_POSITION = [position.x as f32, position.y as f32]}
-                },
-                _ => ()
-            },
-            _ => ()
+static mut PRESSED_TOGGLE: bool = false;
+pub fn key_press(button: VirtualKeyCode) -> bool {
+    unsafe {
+        if PRESSED_TOGGLE == true {
+            if !PRESSED_KEYS.contains(&button) { PRESSED_TOGGLE = false }
+            return false
+        }
+        else {
+            if PRESSED_KEYS.contains(&button) { PRESSED_TOGGLE = true; return true }
+            return false
         }
     }
+}
+static mut KEY_RELEASED_TOGGLE: bool = true;
+pub fn key_release(button: VirtualKeyCode) -> bool {
+    unsafe {
+        if KEY_RELEASED_TOGGLE == true {
+            if !PRESSED_KEYS.contains(&button) { KEY_RELEASED_TOGGLE = false }
+            return false
+        }
+        else {
+            if PRESSED_KEYS.contains(&button) { KEY_RELEASED_TOGGLE = true; return true }
+            return false
+        }
+    }
+}
+
+pub fn mouse_pos() -> [f32; 2] {
     unsafe { CURSOR_POSITION.clone() }
 }
 
-pub fn mouse_clicks(events: &Vec<Event<'_, ()>>) -> Vec<MouseButton> {
-    for event in events.iter() {
-        match event {
-            Event::WindowEvent { event, ..} => match event {
-                glutin::event::WindowEvent::MouseInput { button, .. } => {
-                    unsafe {
-                        if PRESSED_BUTTONS.contains(button) {
-                            PRESSED_BUTTONS.remove(PRESSED_BUTTONS.iter().position(|r| r == button).unwrap());
-                        }
-                        else {
-                            PRESSED_BUTTONS.push(*button);
-                        }
-                    }
-                },
-                _ => ()
-            },
-            _ => ()
-        }
-    }
+pub fn mouse_clicks() -> Vec<MouseButton> {
     return unsafe { PRESSED_BUTTONS.clone() }
 }
 
-pub fn mouse_clicked(key: MouseButton, events: &Vec<Event<'_, ()>>) -> bool {
-    for event in events.iter() {
-        match event {
-            Event::WindowEvent { event, ..} => match event {
-                glutin::event::WindowEvent::MouseInput { button, .. } => {
-                    unsafe {
-                        if PRESSED_BUTTONS.contains(button) {
-                            PRESSED_BUTTONS.remove(PRESSED_BUTTONS.iter().position(|r| r == button).unwrap());
-                            return false
-                        }
-                        else {
-                            PRESSED_BUTTONS.push(*button);
-                            return button == &key
-                        }
-                    }
-                },
-                _ => ()
-            },
-            _ => ()
+static mut CLICKED_TOGGLE: bool = false;
+pub fn mouse_clicked(button: MouseButton) -> bool {
+    unsafe {
+        if CLICKED_TOGGLE == true {
+            if !PRESSED_BUTTONS.contains(&button) { CLICKED_TOGGLE = false }
+            return false
+        }
+        else {
+            if PRESSED_BUTTONS.contains(&button) { CLICKED_TOGGLE = true; return true }
+            return false
         }
     }
-    false
 }
-pub fn mouse_released(key: MouseButton, events: &Vec<Event<'_, ()>>) -> bool {
-    for event in events.iter() {
-        match event {
-            Event::WindowEvent { event, ..} => match event {
-                glutin::event::WindowEvent::MouseInput { button, .. } => {
-                    unsafe {
-                        if PRESSED_BUTTONS.contains(button) {
-                            PRESSED_BUTTONS.remove(PRESSED_BUTTONS.iter().position(|r| r == button).unwrap());
-                            return button == &key
-                        }
-                        else {
-                            PRESSED_BUTTONS.push(*button);
-                            return false
-                        }
-                    }
-                },
-                _ => ()
-            },
-            _ => ()
+
+static mut RELEASED_TOGGLE: bool = true;
+pub fn mouse_released(button: MouseButton) -> bool {
+    unsafe {
+        if RELEASED_TOGGLE == true {
+            if PRESSED_BUTTONS.contains(&button) { RELEASED_TOGGLE = false }
+            return false
+        }
+        else {
+            if !PRESSED_BUTTONS.contains(&button) { RELEASED_TOGGLE = true; return true }
+            return false
         }
     }
-    false
 }
 
 

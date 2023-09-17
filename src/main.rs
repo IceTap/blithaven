@@ -3,10 +3,13 @@ use blithaven::*;
 fn main() {
     start_loop_and_init("super awesome window", 500, 300, move | events | {
         func();
-        // let keys = mouse_clicks(events);
+        // let keys = keys_pressed();
         // if keys.len() > 0 { println!("{:?}", keys) }
-        if mouse_clicked(MouseButton::Right, events) {
+        if key_press(VirtualKeyCode::A) {
             println!("CLicked")
+        }
+        if mouse_released(MouseButton::Left) {
+            println!("relaeasede")
         }
     })
 }
