@@ -79,7 +79,7 @@ pub struct App {
 impl App {
     pub fn new(title: &str, window_width: u32, window_height: u32) -> (Self, EventLoop<()>) {
         let event_loop = EventLoop::new();
-        let window_builder = WindowBuilder::new().with_title(title).with_inner_size(glutin::dpi::Size::from(glutin::dpi::LogicalSize::new(window_width, window_height))).with_resizable(false);
+        let window_builder = WindowBuilder::new().with_title(title).with_inner_size(glutin::dpi::Size::from(glutin::dpi::LogicalSize::new(window_width, window_height))).with_resizable(true);
         let context_buffer = ContextBuilder::new().with_depth_buffer(25);
 
         let display = Display::new(window_builder, context_buffer, &event_loop).unwrap();
@@ -88,7 +88,7 @@ impl App {
         ( App { display, batch, options: Options::new(window_width as i32, window_height as i32), texture_batches: Vec::new(), last_frame_time: Instant::now(), last_fps_output: Instant::now() }, event_loop)
     }
     pub fn new_with_loop(title: &str, window_width: u32, window_height: u32, event_loop: EventLoop<()>) -> Self {
-        let window_builder = WindowBuilder::new().with_title(title).with_inner_size(glutin::dpi::Size::from(glutin::dpi::LogicalSize::new(window_width, window_height))).with_resizable(false);
+        let window_builder = WindowBuilder::new().with_title(title).with_inner_size(glutin::dpi::Size::from(glutin::dpi::LogicalSize::new(window_width, window_height))).with_resizable(true);
         let context_buffer = ContextBuilder::new().with_depth_buffer(25);
 
         let display = Display::new(window_builder, context_buffer, &event_loop).unwrap();
@@ -844,6 +844,11 @@ pub fn mouse_released(button: MouseButton) -> bool {
             return false
         }
     }
+}
+
+pub fn get_dims() -> [i32; 2] {
+    let app = get_app();
+    return [app.options.window_width, app.options.window_height]
 }
 
 
