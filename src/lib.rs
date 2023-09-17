@@ -648,7 +648,6 @@ static mut CONTEXT: Option<App> = None;
 static mut PRESSED_KEYS: Vec<VirtualKeyCode> = Vec::new();
 static mut PRESSED_BUTTONS: Vec<MouseButton> = Vec::new();
 static mut CURSOR_POSITION: [f32; 2] = [0.0,0.0];
-static mut EVENTS: &Vec<Event<()>> = &Vec::new();
 
 pub fn initialize(title: &str, width: u32, height: u32) -> EventLoop<()> {
     unsafe {
@@ -721,6 +720,9 @@ pub fn start_loop_and_init<F>(title: &str, width: u32, height: u32, mut input_co
                                 PRESSED_BUTTONS.push(*button);
                             }
                         }
+                    },
+                    glutin::event::WindowEvent::CursorMoved { position, .. } => {
+                        unsafe { CURSOR_POSITION = [position.x as f32, position.y as f32] }
                     }
                     _ => ()
                 },
