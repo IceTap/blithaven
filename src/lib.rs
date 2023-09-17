@@ -846,9 +846,9 @@ pub fn mouse_released(button: MouseButton) -> bool {
     }
 }
 
-pub fn get_dims() -> [i32; 2] {
+pub fn get_dims() -> [u32; 2] {
     let app = get_app();
-    return [app.options.window_width, app.options.window_height]
+    return [app.options.window_width as u32, app.options.window_height as u32]
 }
 
 
