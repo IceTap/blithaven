@@ -1,8 +1,8 @@
-use std::{time::{Instant, Duration}, fs::File, io::Read, ops::Index};
+use std::{time::{Instant, Duration, self}, fs::File, io::Read, ops::Index};
 pub use glium::glutin::event_loop::EventLoop;
 pub use glium::glutin::event::VirtualKeyCode;
 pub use glium::glutin::event::MouseButton;
-use glium::{*, glutin::ContextBuilder};
+use glium::{*, glutin::ContextBuilder, vertex::MultiVerticesSource};
 use glutin::event::*;
 use glutin::window::*;
 
@@ -74,6 +74,7 @@ pub struct App {
     texture_batches: Vec<TextureBatch>,
     last_frame_time: Instant,
     last_fps_output: Instant,
+    animations: Vec<Animation>
 }
 
 impl App {
@@ -85,17 +86,17 @@ impl App {
         let display = Display::new(window_builder, context_buffer, &event_loop).unwrap();
         let batch = Batch::new(&display, window_width as i32, window_height as i32);
 
-        ( App { display, batch, options: Options::new(window_width as i32, window_height as i32), texture_batches: Vec::new(), last_frame_time: Instant::now(), last_fps_output: Instant::now() }, event_loop)
+        ( App { display, batch, options: Options::new(window_width as i32, window_height as i32), texture_batches: Vec::new(), last_frame_time: Instant::now(), last_fps_output: Instant::now(), animations: vec![] }, event_loop)
     }
-    pub fn new_with_loop(title: &str, window_width: u32, window_height: u32, event_loop: EventLoop<()>) -> Self {
-        let window_builder = WindowBuilder::new().with_title(title).with_inner_size(glutin::dpi::Size::from(glutin::dpi::LogicalSize::new(window_width, window_height))).with_resizable(true);
-        let context_buffer = ContextBuilder::new().with_depth_buffer(25);
+    // pub fn new_with_loop(title: &str, window_width: u32, window_height: u32, event_loop: EventLoop<()>) -> Self {
+    //     let window_builder = WindowBuilder::new().with_title(title).with_inner_size(glutin::dpi::Size::from(glutin::dpi::LogicalSize::new(window_width, window_height))).with_resizable(true);
+    //     let context_buffer = ContextBuilder::new().with_depth_buffer(25);
 
-        let display = Display::new(window_builder, context_buffer, &event_loop).unwrap();
-        let batch = Batch::new(&display, window_width as i32, window_height as i32);
+    //     let display = Display::new(window_builder, context_buffer, &event_loop).unwrap();
+    //     let batch = Batch::new(&display, window_width as i32, window_height as i32);
 
-        App { display, batch, options: Options::new(window_width as i32, window_height as i32), texture_batches: Vec::new(), last_frame_time: Instant::now(), last_fps_output: Instant::now() }
-    }
+    //     App { display, batch, options: Options::new(window_width as i32, window_height as i32), texture_batches: Vec::new(), last_frame_time: Instant::now(), last_fps_output: Instant::now() }
+    // }
 
     pub fn use_pixel_coords(&mut self, param: bool) {
         self.options.use_pixel_space = param;
@@ -210,6 +211,39 @@ impl App {
         }
 
         self.texture_batches.push(TextureBatch::new(&self.display, self.options.window_width, self.options.window_height, path.to_string()))
+    }
+
+    pub fn animate(&mut self, position: [i32; 2], width: i32, height: i32, animation: &str) {
+        let mut current_frame: &str = "";
+        for i in self.animations.iter_mut() {
+            if i.name == animation.to_string() {
+                current_frame = i.textures[i.current_frame].as_str();
+                if i.last_frame.elapsed() > Duration::from_secs_f32(1.0 / i.frame_rate as f32) {
+                    i.last_frame = time::Instant::now();
+                    if i.current_frame == i.textures.len() - 1 {
+                        i.current_frame = 0;
+                    }
+                    else { i.current_frame += 1; }
+                }
+            }
+        }
+        blit(position, width, height, current_frame);
+    }
+
+    pub fn add_animation(&mut self, name: &str, frame_rate: u8, textures: Vec<&str>) {
+        for ani in self.animations.iter() {
+            if ani.name == name {
+                return
+            }
+        }
+        let textures = {
+            let mut test: Vec<String> = vec![];
+            for tex in textures {
+                test.push(tex.to_string())
+            }
+            test
+        };
+        self.animations.push( Animation { name: name.to_string(), last_frame: time::Instant::now(), textures, frame_rate, current_frame: 0 })
     }
 }
 
@@ -662,23 +696,37 @@ pub fn get_app() -> &'static mut App {
     return unsafe { CONTEXT.as_mut().unwrap() }
 }
 
-pub fn circle(position: [f32; 2], radius: f32, color: (f32,f32,f32)) {
+pub fn circle(position: [i32; 2], radius: i32, color: (f32,f32,f32)) {
     let app = get_app();
     app.circle([position[0] as i32, position[1] as i32], radius as i32, color)
 }
-pub fn square(position: [f32; 2], size: f32, color: (f32,f32,f32)) {
+pub fn square(position: [i32; 2], size: i32, color: (f32,f32,f32)) {
     let app = get_app();
     app.square([position[0] as i32, position[1] as i32], size as i32, color)
 }
-pub fn rect(position: [f32; 2], width: f32, height: f32, color: (f32,f32,f32)) {
+pub fn rect(position: [i32; 2], width: i32, height: i32, color: (f32,f32,f32)) {
     let app = get_app();
     app.rect([position[0] as i32, position[1] as i32], width as i32, height as i32, color)
 }
-pub fn texture(position: [f32; 2], width: f32, height: f32, texture_path: &str) {
+pub fn blit(position: [i32; 2], width: i32, height: i32, texture_path: &str) {
     let app = get_app();
     app.texture_quad([position[0] as i32, position[1] as i32], width as i32, height as i32, texture_path)
 }
-
+pub fn animate(position: [i32; 2], width: i32, height: i32, animation: &str) {
+    let app = get_app();
+    app.animate(position, width, height, animation);
+}
+pub fn add_animation(name: &str, frame_rate: u8, textures: Vec<&str>) {
+    let app = get_app();
+    app.add_animation(name, frame_rate, textures);
+}
+struct Animation {
+    name: String,
+    last_frame: time::Instant,
+    textures: Vec<String>,
+    frame_rate: u8,
+    current_frame: usize
+}
 
 pub fn run<F>(title: &str, window_width: u32, window_height: u32, mut loop_function: F) ->! where F: 'static + FnMut() {
     let ev_loop = initialize(title, window_width, window_height);
@@ -735,10 +783,10 @@ pub fn start_loop_and_init<F>(title: &str, width: u32, height: u32, mut input_co
 }
 
 
-pub fn start<F>(event_loop: EventLoop<()>, mut loop_function: F) ->! where F: 'static + FnMut() {
+pub fn start<F>(event_loop: EventLoop<()>, mut loop_function: F) ->! where F: 'static + FnMut(&Vec<Event<'_, ()>>) {
     let app = get_app();
     start_loop(event_loop, move | events | {
-        loop_function();
+        loop_function(events);
 
         for event in events.iter() {
             match event {
@@ -850,64 +898,3 @@ pub fn get_dims() -> [u32; 2] {
     let app = get_app();
     return [app.options.window_width as u32, app.options.window_height as u32]
 }
-
-
-// pub fn next_frame_await() {
-//     let mut events_buffer = Vec::new();
-//     let mut next_frame_time = Instant::now();
-//     let app = get_app();
-    
-//     tick(move |event, _, control_flow| {
-//         let run_callback = match event.to_static() {
-//             Some(Event::NewEvents(cause)) => {
-//                 match cause {
-//                     StartCause::ResumeTimeReached { .. } | StartCause::Init => {
-//                         true
-//                     },
-//                     _ => false
-//                 }
-//             },
-//             Some(event) => {
-//                 events_buffer.push(event);
-//                 false
-//             }
-//             None => {
-//                 // Ignore this event.
-//                 false
-//             },
-//         };
-
-//         let action = if run_callback {
-//             app.finish([0.1,0.1,0.1], &events_buffer);
-//             next_frame_time = Instant::now() + Duration::from_nanos(1666667);
-//             // TODO: Add back the old accumulator loop in some way
-//             for event in events_buffer.iter() {
-//                 match event {
-//                     glutin::event::Event::WindowEvent { event, .. } => match event {
-//                         glutin::event::WindowEvent::CloseRequested => {
-//                             *control_flow = glutin::event_loop::ControlFlow::Exit;
-//                             return
-//                         },
-//                         _ => (),
-//                     },
-//                     _ => (),
-//                 }
-//             };
-
-//             events_buffer.clear();
-//             Action::Continue
-//         } else {
-//             Action::Continue
-//         };
-
-//         match action {
-//             Action::Continue => {
-//                 *control_flow = ControlFlow::WaitUntil(next_frame_time);
-//             }
-//         };
-//     });
-// }
-
-// fn tick<F>(func: F) where F: 'static + FnMut(Event<'_, ()>, &glutin::event_loop::EventLoopWindowTarget<()>, &mut ControlFlow) {
-//     ()
-// }

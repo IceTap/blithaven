@@ -1,4 +1,7 @@
-/target
-/Cargo.lock
-/.vscode
-/.DS_Store
+.DS_Store
+src/balls.rs
+src/main.rs
+src/assets
+target
+Cargo.lock
+Cargo.lock
