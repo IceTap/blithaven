@@ -1,16 +1,14 @@
-use std::{time::{Instant, Duration, self}, fs::File, io::Read, ops::Index};
+use std::{time::{Instant, Duration, self}, fs::File, io::Read};
 pub use glium::glutin::event_loop::EventLoop;
 pub use glium::glutin::event::VirtualKeyCode;
 pub use glium::glutin::event::MouseButton;
-use glium::{*, glutin::ContextBuilder, vertex::MultiVerticesSource};
+use glium::{*, glutin::ContextBuilder};
 use glutin::event::*;
 use glutin::window::*;
 
 enum Action {
     Continue
 }
-
-struct MakeLightBulbGoAway;
 
 pub fn start_loop<F>(event_loop: EventLoop<()>, mut input_code: F)->! where F: 'static + FnMut(&Vec<Event<'_, ()>>) {
     let mut events_buffer = Vec::new();
