@@ -506,7 +506,6 @@ impl TextureBatch {
                 color = texture(tex, v_tex_coord);
             }
         ");
-
         let program = Program::from_source(display, &vertex_shader, &fragment_shader, None).unwrap();
         
         let f = File::open(&path).unwrap();
@@ -537,6 +536,12 @@ impl TextureBatch {
         self.window_width = display.get_framebuffer_dimensions().0 as i32;
         self.window_height = display.get_framebuffer_dimensions().1 as i32;
 
+        let behavior = glium::uniforms::SamplerBehavior {
+            minify_filter: uniforms::MinifySamplerFilter::Linear,
+            magnify_filter: uniforms::MagnifySamplerFilter::Nearest,
+            ..Default::default()
+        };
+
         let uniforms = glium::uniform! {
             matrix: [
                 [1.0, 0.0, 0.5, 0.0],
@@ -544,12 +549,12 @@ impl TextureBatch {
                 [0.0, 0.0, 1.0, 0.0],
                 [-1.0, 1.0, -1.0, 1.0f32],
             ],
-            tex: &self.texture
+            tex: glium::uniforms::Sampler(&self.texture, behavior)
         };
 
         let mut index_buffer_buffer: Vec<u16> = Vec::new();
         let mut vertex_buffer_buffer: Vec<Vertex> = Vec::new();
-        let mut quad_count = 0;
+        let mut quad_count: usize = 0;
         const QUADS_PER_DRAW: usize = 16380;
 
         for i in 0 .. self.vertex_buffer.len() {
@@ -562,8 +567,8 @@ impl TextureBatch {
                 quad_count += 1;
             }
             if quad_count == QUADS_PER_DRAW || i == self.vertex_buffer.len() - 1 {
-                let index_buffer = IndexBuffer::new(display, index::PrimitiveType::TrianglesList, &index_buffer_buffer).unwrap();
-                let vertex_buffer = VertexBuffer::new(display, &vertex_buffer_buffer).unwrap();
+                let index_buffer: IndexBuffer<u16> = IndexBuffer::new(display, index::PrimitiveType::TrianglesList, &index_buffer_buffer).unwrap();
+                let vertex_buffer: VertexBuffer<Vertex> = VertexBuffer::new(display, &vertex_buffer_buffer).unwrap();
 
                 index_buffer_buffer = Vec::new();
                 vertex_buffer_buffer = Vec::new();
@@ -895,4 +900,39 @@ pub fn mouse_released(button: MouseButton) -> bool {
 pub fn get_dims() -> [u32; 2] {
     let app = get_app();
     return [app.options.window_width as u32, app.options.window_height as u32]
+}
+
+pub fn text(string: &str, pos: [i32; 2], size: i32) {
+    for (i, char) in string.to_uppercase().chars().enumerate() {
+        match char {
+            'B' => blit([pos[0] + size * i as i32, pos[1]], size, size, "src/assets/font/b.png"),
+            'A' => blit([pos[0] + size * i as i32, pos[1]], size, size, "src/assets/font/a.png"),
+            'C' => blit([pos[0] + size * i as i32, pos[1]], size, size, "src/assets/font/c.png"),
+            'D' => blit([pos[0] + size * i as i32, pos[1]], size, size, "src/assets/font/d.png"),
+            'E' => blit([pos[0] + size * i as i32, pos[1]], size, size, "src/assets/font/e.png"),
+            'F' => blit([pos[0] + size * i as i32, pos[1]], size, size, "src/assets/font/f.png"),
+            'G' => blit([pos[0] + size * i as i32, pos[1]], size, size, "src/assets/font/g.png"),
+            'H' => blit([pos[0] + size * i as i32, pos[1]], size, size, "src/assets/font/h.png"),
+            'I' => blit([pos[0] + size * i as i32, pos[1]], size, size, "src/assets/font/i.png"),
+            'J' => blit([pos[0] + size * i as i32, pos[1]], size, size, "src/assets/font/j.png"),
+            'K' => blit([pos[0] + size * i as i32, pos[1]], size, size, "src/assets/font/k.png"),
+            'L' => blit([pos[0] + size * i as i32, pos[1]], size, size, "src/assets/font/l.png"),
+            'M' => blit([pos[0] + size * i as i32, pos[1]], size, size, "src/assets/font/m.png"),
+            'N' => blit([pos[0] + size * i as i32, pos[1]], size, size, "src/assets/font/n.png"),
+            'O' => blit([pos[0] + size * i as i32, pos[1]], size, size, "src/assets/font/o.png"),
+            'P' => blit([pos[0] + size * i as i32, pos[1]], size, size, "src/assets/font/p.png"),
+            'Q' => blit([pos[0] + size * i as i32, pos[1]], size, size, "src/assets/font/q.png"),
+            'R' => blit([pos[0] + size * i as i32, pos[1]], size, size, "src/assets/font/r.png"),
+            'S' => blit([pos[0] + size * i as i32, pos[1]], size, size, "src/assets/font/s.png"),
+            'T' => blit([pos[0] + size * i as i32, pos[1]], size, size, "src/assets/font/t.png"),
+            'U' => blit([pos[0] + size * i as i32, pos[1]], size, size, "src/assets/font/u.png"),
+            'V' => blit([pos[0] + size * i as i32, pos[1]], size, size, "src/assets/font/v.png"),
+            'W' => blit([pos[0] + size * i as i32, pos[1]], size, size, "src/assets/font/w.png"),
+            'X' => blit([pos[0] + size * i as i32, pos[1]], size, size, "src/assets/font/x.png"),
+            'Y' => blit([pos[0] + size * i as i32, pos[1]], size, size, "src/assets/font/y.png"),
+            'Z' => blit([pos[0] + size * i as i32, pos[1]], size, size, "src/assets/font/z.png"),
+            '!' => blit([pos[0] + size * i as i32, pos[1]], size, size, "src/assets/font/!.png"),
+            _ => ()
+        }
+    }
 }
