@@ -507,19 +507,8 @@ impl TextureBatch {
             }
         ");
         let program = Program::from_source(display, &vertex_shader, &fragment_shader, None).unwrap();
-        
-        let f = File::open(&path).unwrap();
 
-        let mut reader = std::io::BufReader::new(f);
-        let mut buffer = Vec::new();
-        reader.read_to_end(&mut buffer).unwrap();
-
-        let raw_texture: image::ImageBuffer<image::Rgba<u8>, Vec<u8>> = image::load(std::io::Cursor::new(&buffer),
-                        image::ImageFormat::Png).unwrap().to_rgba8();
-        let image_dimensions = raw_texture.dimensions();
-        let image: glium::texture::RawImage2d<'_, u8> = glium::texture::RawImage2d::from_raw_rgba_reversed(&raw_texture.clone().into_raw(), image_dimensions);
-
-        let texture: glium::texture::SrgbTexture2d = glium::texture::SrgbTexture2d::new(display, image).unwrap();
+        let texture = new_texture(&path, display);
 
         Self { 
             vertex_buffer: Vec::new(),
@@ -650,7 +639,7 @@ impl TextureBatch {
 }
 
 
-pub fn new_texture(path: &str, display: &Display) -> glium::texture::SrgbTexture2d {
+fn new_texture(path: &str, display: &Display) -> glium::texture::SrgbTexture2d {
     let f = File::open(path).unwrap();
     let mut reader = std::io::BufReader::new(f);
     let mut buffer = Vec::new();
