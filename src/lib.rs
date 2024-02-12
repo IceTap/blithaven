@@ -10,6 +10,18 @@ enum Action {
     Continue
 }
 
+const A: [u8; 64] = 
+[
+  0,0,1,1,0,0,0,0,
+  0,1,1,1,1,0,0,0,
+  1,1,0,0,1,1,0,0,
+  1,1,0,0,1,1,0,0,
+  1,1,1,1,1,1,0,0,
+  1,1,0,0,1,1,0,0,
+  1,1,0,0,1,1,0,0,
+  0,0,0,0,0,0,0,0
+];
+
 pub fn start_loop<F>(event_loop: EventLoop<()>, mut input_code: F)->! where F: 'static + FnMut(&Vec<Event<'_, ()>>) {
     let mut events_buffer = Vec::new();
     let mut next_frame_time = Instant::now();
@@ -473,7 +485,8 @@ pub struct TextureBatch {
     window_height: i32,
     program: Program,
     path: String,
-    texture: glium::texture::SrgbTexture2d
+    texture: glium::texture::SrgbTexture2d,
+    textures: Vec<glium::texture::SrgbTexture2d>
 }
 
 impl TextureBatch {
@@ -517,7 +530,8 @@ impl TextureBatch {
             window_height,
             program,
             path,
-            texture
+            texture,
+            textures: vec![]
         }
     }
 
@@ -893,6 +907,7 @@ pub fn get_dims() -> [u32; 2] {
 
 pub fn text(string: &str, pos: [i32; 2], size: i32) {
     for (i, char) in string.to_uppercase().chars().enumerate() {
+
         match char {
             'B' => blit([pos[0] + size * i as i32, pos[1]], size, size, "src/assets/font/b.png"),
             'A' => blit([pos[0] + size * i as i32, pos[1]], size, size, "src/assets/font/a.png"),
